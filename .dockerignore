@@ -1,0 +1,25 @@
+node_modules
+.output
+.nuxt
+.git
+.gitignore
+*.log
+README.md
+dist
+
+
+# IDE dan editor
+.vscode
+.idea
+.DS_Store
+
+# Docker files (tidak perlu di-copy ke dalam image)
+docker-compose*.yml
+Dockerfile*
+
+# Testing
+coverage
+tests
+__tests__
+*.test.js
+*.spec.js

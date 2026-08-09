@@ -1,0 +1,49 @@
+{
+  "name": "lms",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "start": "node .output/server/index.mjs"
+  },
+  "dependencies": {
+    "@fontsource/plus-jakarta-sans": "^5.2.8",
+    "@mdi/font": "^7.4.47",
+    "@mdi/js": "^7.4.47",
+    "@nuxtjs/i18n": "^9.5.6",
+    "@pinia/nuxt": "^0.11.3",
+    "@tabler/icons-vue": "^3.36.0",
+    "@tailwindcss/vite": "^4.1.18",
+    "@types/leaflet": "^1.9.21",
+    "@vee-validate/nuxt": "^4.15.1",
+    "@vee-validate/zod": "^4.15.1",
+    "@vuepic/vue-datepicker": "^12.1.0",
+    "apexcharts": "^5.3.6",
+    "embla-carousel-vue": "^8.6.0",
+    "exceljs": "^4.4.0",
+    "firebase": "12.2.1",
+    "html-to-pdfmake": "^2.5.33",
+    "leaflet": "^1.9.4",
+    "moment": "^2.30.1",
+    "mqtt": "^5.15.1",
+    "nuxt": "^4.2.2",
+    "pdfmake": "^0.3.6",
+    "pinia": "^3.0.4",
+    "pinia-plugin-persistedstate": "^4.7.1",
+    "sweetalert2": "^11.26.17",
+    "tailwindcss": "^4.1.18",
+    "vee-validate": "^4.15.1",
+    "vue": "^3.5.26",
+    "vue-router": "^4.6.4",
+    "vue3-apexcharts": "^1.10.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "@types/pdfmake": "^0.3.2"
+  }
+}

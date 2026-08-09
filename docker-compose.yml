@@ -1,0 +1,25 @@
+services:
+  app-mkn-fe:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Diambil dari .env (interpolasi compose). Nilai ini WAJIB ada saat build
+        # karena target proxy /api -> ${API_HOST}/v1 di-bake ke .output saat npm run build.
+        API_HOST: ${API_HOST}
+        DOMAIN: ${DOMAIN}
+        TOKEN_KEY: ${TOKEN_KEY}
+        TOKEN_MAX_AGE: ${TOKEN_MAX_AGE:-604800}
+        NODE_ENV: production
+        PORT: ${PORT:-8500}
+    image: registry.thegreatsoft.com/cargo/cargo-mkn-fe:v23
+    container_name: app-mkn-fe
+    restart: always
+    network_mode: bridge
+    ports:
+      - "8501:8500"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production

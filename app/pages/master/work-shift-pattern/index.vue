@@ -9,7 +9,7 @@
       :tableData="tableData"
       :loading="isLoading"
       :filterSchema="filterSchema"
-      :filterList="{ listPersonnel, listShift }"
+      :filterList="{ listPerson, listShift }"
       :actions="actions"
       :actionToolbars="actionToolbars"
       :actionLoading="{ exportItem: isExporting }"
@@ -28,24 +28,10 @@
       </template>
     </TableList>
 
-    <UiModal v-model="showDialog" :title="dialogTitle" persistent size="md">
+    <!-- Modal Form (Bulk / Single Assign) -->
+    <UiModal v-model="showDialog" :title="dialogTitle" persistent size="lg">
       <UiForm ref="formRef">
-        <div class="space-y-3">
-          <UiRow>
-            <UiCol cols="12" md="12">
-              <UiAutocomplete
-                v-model="editedItem.personnelId"
-                label="Pegawai / Karyawan"
-                placeholder="Pilih Pegawai"
-                :options="listPersonnel"
-                item-value="id"
-                item-title="name"
-                required
-                :rules="[(v) => !!v || 'Wajib diisi']"
-              />
-            </UiCol>
-          </UiRow>
-
+        <div class="space-y-4">
           <UiRow>
             <UiCol cols="12" md="12">
               <UiAutocomplete
@@ -82,6 +68,79 @@
               />
             </UiCol>
           </UiRow>
+
+          <!-- Mode Edit (Single Person) -->
+          <UiRow v-if="isEditing">
+            <UiCol cols="12" md="12">
+              <UiAutocomplete
+                v-model="editedItem.personId"
+                label="Pegawai / Karyawan"
+                placeholder="Pilih Pegawai"
+                :options="listPerson"
+                item-value="id"
+                item-title="name"
+                required
+                :rules="[(v) => !!v || 'Wajib diisi']"
+              />
+            </UiCol>
+          </UiRow>
+
+          <!-- Mode Bulk Add (Person Lookup Table) -->
+          <div v-else class="space-y-3 pt-2">
+            <div class="flex items-center justify-between pb-2">
+              <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Daftar Pegawai Terpilih ({{ selectedPersons.length }})
+              </label>
+              <UiButton
+                color="primary"
+                variant="outline"
+                size="sm"
+                @click="showPersonLookup = true"
+              >
+                <i class="mdi mdi-account-search mr-1"></i>
+                Pilih Pegawai (Lookup)
+              </UiButton>
+            </div>
+
+            <UiTable
+              :columns="selectedPersonsHeaders"
+              :data="selectedPersons"
+              item-key="id"
+            >
+              <template #cell-no="{ row: item, index }">
+                {{ index + 1 }}
+              </template>
+
+              <template #cell-nip="{ row: item }">
+                <span class="font-mono text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  {{ item.nip || '-' }}
+                </span>
+              </template>
+
+              <template #cell-name="{ row: item }">
+                <span class="font-medium text-slate-900 dark:text-white">
+                  {{ item.name }}
+                </span>
+              </template>
+
+              <template #cell-actions="{ row: item }">
+                <button
+                  type="button"
+                  class="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  title="Hapus dari daftar"
+                  @click="removeSelectedPerson(item.id)"
+                >
+                  <i class="mdi mdi-delete text-base"></i>
+                </button>
+              </template>
+
+              <template #empty>
+                <div class="p-4 text-center text-slate-400 text-sm border border-dashed border-slate-200 dark:border-slate-700 rounded-lg">
+                  Belum ada pegawai dipilih. Klik tombol "Pilih Pegawai (Lookup)" di atas.
+                </div>
+              </template>
+            </UiTable>
+          </div>
         </div>
       </UiForm>
 
@@ -96,6 +155,15 @@
         </div>
       </template>
     </UiModal>
+
+    <!-- Person Lookup Modal Component -->
+    <DialogPersonLookup
+      v-model="showPersonLookup"
+      :multiple="true"
+      title="Pilih Pegawai untuk Penugasan Shift"
+      :exclude-ids="selectedPersons.map(p => p.id)"
+      @add-to-queue="handleSelectedPersonsFromLookup"
+    />
   </div>
 </template>
 
@@ -103,6 +171,7 @@
 import workShiftPatternService from "@/services/work-shift-pattern.service";
 import workShiftService from "@/services/work-shift.service";
 import personService from "@/services/person.service";
+import DialogPersonLookup from "@/components/dialog/PersonLookup.vue";
 import { useSwal } from "~/composables/useSwal";
 import { useExcelExport } from "~/composables/useExcelExport";
 
@@ -127,18 +196,21 @@ const { isExporting, exportToExcel } = useExcelExport();
 
 const tableTitle = computed(() => "Daftar Penugasan Shift Pegawai");
 
-const listPersonnel: any = ref([]);
+const listPerson: any = ref([]);
 const listShift: any = ref([]);
+const selectedPersons: any = ref([]);
+
 const isLoading = ref(false);
 const isLoadingSave = ref(false);
 const showDialog = ref(false);
+const showPersonLookup = ref(false);
 const isEditing = ref(false);
 const itemPerPage = ref(10);
 const formRef = ref<{ validate: () => Promise<boolean> } | null>(null);
 
 const defaultItem = {
   id: null as string | null,
-  personnelId: null as number | null,
+  personId: null as number | null,
   shiftId: null as string | null,
   effectiveFrom: null as string | null,
   effectiveUntil: null as string | null,
@@ -147,7 +219,7 @@ const defaultItem = {
 const editedItem: any = ref({ ...defaultItem });
 
 const dialogTitle = computed(() =>
-  isEditing.value ? "Ubah Penugasan Shift" : "Tambah Penugasan Shift"
+  isEditing.value ? "Ubah Penugasan Shift" : "Tambah / Bulk Assign Penugasan Shift"
 );
 
 const tableData: any = ref({
@@ -163,9 +235,16 @@ const breadcrumbs = computed(() => [
   { label: pageTitle },
 ]);
 
+const selectedPersonsHeaders = computed(() => [
+  { key: "no", label: "No", sortable: false },
+  { key: "nip", label: "NIP", sortable: false },
+  { key: "name", label: "Nama Pegawai", sortable: false },
+  { key: "actions", label: "Aksi", align: "center", width: "10%" },
+]);
+
 const headers = computed(() => [
-  { key: "personnelNip", title: "NIP", sortable: true },
-  { key: "personnelName", title: "Nama Pegawai", sortable: true },
+  { key: "personNip", title: "NIP", sortable: true },
+  { key: "personName", title: "Nama Pegawai", sortable: true },
   { key: "shiftName", title: "Shift / Jam Kerja", sortable: true },
   { key: "effectiveFrom", title: "Berlaku Mulai", sortable: true },
   { key: "effectiveUntil", title: "Berlaku Selesai", sortable: true },
@@ -174,9 +253,9 @@ const headers = computed(() => [
 
 const filterSchema = computed(() => [
   {
-    name: "personnelId",
+    name: "personId",
     type: "autocomplete" as const,
-    items: "listPersonnel",
+    items: "listPerson",
     placeholder: "Pilih Pegawai",
     colMd: 3,
     valueKey: "id",
@@ -222,7 +301,7 @@ const actionToolbars = computed(() => [
     key: "addItem",
     icon: "mdi-plus-circle-outline",
     color: "primary",
-    tooltip: "Tambah",
+    tooltip: "Tambah Bulk",
     emit: "addItem",
     type: "default" as const,
   },
@@ -242,7 +321,7 @@ onMounted(() => {
 async function loadOptions() {
   await Promise.all([
     personSvc.retrieveAll().then((res: any) => {
-      if (res.data) listPersonnel.value = res.data;
+      if (res.data) listPerson.value = res.data;
     }).catch(() => {}),
     shiftSvc.retrieveAll().then((res: any) => {
       if (res.data) listShift.value = res.data;
@@ -263,7 +342,7 @@ function formatDate(value: any) {
 }
 
 async function loadAll() {
-  const { pageNumber, pageSize, q, sortBy, sortType, personnelId, shiftId } = route.query;
+  const { pageNumber, pageSize, q, sortBy, sortType, personId, shiftId } = route.query;
 
   isLoading.value = true;
 
@@ -274,7 +353,7 @@ async function loadAll() {
       pageNumber: pageNumber ? pageNumber : 1,
       sortBy: sortBy,
       sortType: sortType,
-      personnelId: personnelId,
+      personId: personId,
       shiftId: shiftId,
     })
     .then((res: any) => {
@@ -294,7 +373,20 @@ async function loadAll() {
 function addItem() {
   isEditing.value = false;
   editedItem.value = { ...defaultItem };
+  selectedPersons.value = [];
   showDialog.value = true;
+}
+
+function handleSelectedPersonsFromLookup(persons: any[]) {
+  persons.forEach((person) => {
+    if (!selectedPersons.value.some((p: any) => p.id === person.id)) {
+      selectedPersons.value.push(person);
+    }
+  });
+}
+
+function removeSelectedPerson(id: number) {
+  selectedPersons.value = selectedPersons.value.filter((p: any) => p.id !== id);
 }
 
 async function editItem(row: any) {
@@ -304,7 +396,7 @@ async function editItem(row: any) {
       if (res.data) {
         editedItem.value = {
           ...res.data,
-          personnelId: res.data.personnelId ?? res.data.personnel_id ?? null,
+          personId: res.data.personId ?? res.data.person_id ?? null,
           shiftId: res.data.shiftId ?? res.data.shift_id ?? null,
           effectiveFrom: res.data.effectiveFrom ? formatCustomDate(res.data.effectiveFrom, 'YYYY-MM-DD') : null,
           effectiveUntil: res.data.effectiveUntil ? formatCustomDate(res.data.effectiveUntil, 'YYYY-MM-DD') : null,
@@ -320,13 +412,27 @@ async function saveItem() {
   const isValid = await formRef.value?.validate();
   if (!isValid) return;
 
+  if (!isEditing.value && selectedPersons.value.length === 0) {
+    swal.toast("Silakan pilih setidaknya satu pegawai untuk penugasan shift", "warning");
+    return;
+  }
+
   isLoadingSave.value = true;
 
+  const payload = isEditing.value
+    ? editedItem.value
+    : {
+        shiftId: editedItem.value.shiftId,
+        effectiveFrom: editedItem.value.effectiveFrom,
+        effectiveUntil: editedItem.value.effectiveUntil,
+        personIds: selectedPersons.value.map((p: any) => p.id),
+      };
+
   patternSvc
-    .save(editedItem.value)
+    .save(payload)
     .then(() => {
       swal.toast(
-        isEditing.value ? "Penugasan shift diperbarui" : "Penugasan shift disimpan",
+        isEditing.value ? "Penugasan shift diperbarui" : "Bulk penugasan shift disimpan",
         "success"
       );
       showDialog.value = false;
@@ -341,9 +447,9 @@ async function saveItem() {
 }
 
 async function deleteItem(row: any) {
-  const result = await swal.confirmDelete(row.personnelName, {
+  const result = await swal.confirmDelete(row.personName || row.personName, {
     title: "Hapus Data",
-    text: 'Apakah Anda yakin ingin menghapus penugasan shift untuk "' + row.personnelName + '"?',
+    text: 'Apakah Anda yakin ingin menghapus penugasan shift untuk "' + row.personName || row.personName + '"?',
     confirmText: "Ya",
     cancelText: "Batal",
     preConfirm: async () => {
@@ -361,7 +467,7 @@ async function deleteItem(row: any) {
 }
 
 async function exportItem() {
-  const { q, sortBy, sortType, personnelId, shiftId } = route.query;
+  const { q, sortBy, sortType, personId, shiftId } = route.query;
 
   const response: any = await patternSvc.retrieve({
     q: q,
@@ -369,7 +475,7 @@ async function exportItem() {
     pageNumber: 1,
     sortBy: sortBy,
     sortType: sortType,
-    personnelId: personnelId,
+    personId: personId,
     shiftId: shiftId,
     ignorePaging: true,
   });
@@ -384,8 +490,8 @@ async function exportItem() {
       subtitle: pageTitle,
     },
     columns: [
-      { header: "NIP", key: "personnelNip", width: 20 },
-      { header: "Nama Pegawai", key: "personnelName", width: 35 },
+      { header: "NIP", key: "personNip", width: 20 },
+      { header: "Nama Pegawai", key: "personName", width: 35 },
       { header: "Shift / Jam Kerja", key: "shiftName", width: 35 },
       { header: "Tanggal Efektif Mulai", key: "effectiveFrom", width: 25 },
       { header: "Tanggal Efektif Selesai", key: "effectiveUntil", width: 25 },

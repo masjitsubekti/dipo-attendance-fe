@@ -9,7 +9,7 @@
       :tableData="tableData"
       :loading="isLoading"
       :filterSchema="filterSchema"
-      :filterList="{ listRole }"
+      :filterList="{ listRole, listInstitution }"
       :actions="actions"
       :actionToolbars="actionToolbars"
       @fetchData="loadAll"
@@ -88,6 +88,16 @@
             </UiCol>
           </UiRow>
 
+          <UiAutocomplete
+            v-model="editedItem.institutionId"
+            label="Institusi"
+            placeholder="Pilih Institusi"
+            :options="listInstitution"
+            item-value="id"
+            item-title="name"
+            clearable
+          />
+
           <UiInput
             v-model="editedItem.password"
             label="Password"
@@ -131,6 +141,7 @@
 <script setup lang="ts">
 import userService from "@/services/user.service";
 import roleService from "@/services/role.service";
+import institutionService from "@/services/institution.service";
 import PersonLookup from '@/components/dialog/PersonLookup.vue'
 import { useSwal } from "~/composables/useSwal";
 
@@ -155,6 +166,9 @@ const swal = useSwal();
 const route = useRoute();
 const userSvc = userService();
 const roleSvc = roleService();
+const instSvc = institutionService();
+
+const listInstitution: any = ref([]);
 
 const itemPerPage = ref(10);
 const isLoading = ref(false);
@@ -194,7 +208,9 @@ const headers = computed(() => [
   { key: "name", title: "Nama", sortable: true },
   { key: "username", title: "Username", sortable: true },
   { key: "email", title: "Email", sortable: true },
-  { key: "role", title: "Role", sortable: true },
+  { key: "roleName", title: "Role", sortable: true },
+  { key: "personName", title: "Pegawai", sortable: true },
+  { key: "institutionName", title: "Institusi", sortable: true },
   { key: "active", title: "Status", align: "center" },
   { key: "actions", title: "Aksi", align: "center", width: "10%" },
 ]);
@@ -205,11 +221,20 @@ const filterSchema = computed(() => [
     type: "autocomplete" as const,
     items: "listRole",
     placeholder: "Pilih Role",
-    colMd: 2,
+    colMd: 3,
     valueKey: "id",
     textKey: "name",
   },
-  { name: "", type: "text" as const, colMd: 6 },
+  {
+    name: "institutionId",
+    type: "autocomplete" as const,
+    items: "listInstitution",
+    placeholder: "Pilih Institusi",
+    colMd: 3,
+    valueKey: "id",
+    textKey: "name",
+  },
+  { name: "", type: "text" as const, colMd: 2 },
   {
     name: "q",
     type: "search" as const,
@@ -269,6 +294,7 @@ const defaultItem = {
   email: "",
   password: "",
   roleId: null as string | null,
+  institutionId: null as number | null,
   personId: null as number | null,
   status: "1",
 };
@@ -292,7 +318,14 @@ const passwordRules = computed(() => {
 
 onMounted(() => {
   loadAllRole();
+  loadAllInstitution();
 });
+
+async function loadAllInstitution() {
+  await instSvc.retrieveAll().then((res: any) => {
+    listInstitution.value = res.data || [];
+  });
+}
 
 async function loadAll() {
   const {
@@ -316,9 +349,6 @@ async function loadAll() {
       sortBy: sortBy,
       sortType: sortType,
       roleId: roleId,
-      organizationId: organizationId
-        ? organizationId
-        : filter.value.organizationId,
       institutionId: institutionId ? institutionId : filter.value.institutionId,
     })
     .then((res: any) => {
@@ -359,6 +389,9 @@ async function editItem(row: any) {
 
       if (editedItem.value.personId) {
         editedItem.value.personId = Number(editedItem.value.personId);
+      }
+      if (editedItem.value.institutionId) {
+        editedItem.value.institutionId = Number(editedItem.value.institutionId);
       }
 
       isEditing.value = true;
@@ -452,8 +485,8 @@ function openPersonLookup() {
 }
 
 function generateUsernameFromPerson(person: any) {
-  if (person?.personNumber) {
-    return String(person.personNumber).toLowerCase().trim()
+  if (person?.nip) {
+    return String(person.nip).toLowerCase().trim()
   }
 
   return String(person?.name || '')
@@ -472,6 +505,9 @@ function handleSelectPerson(items: any[]) {
   editedItem.value.name = person.name || ''
   editedItem.value.username = generateUsernameFromPerson(person)
   editedItem.value.email = person.email || ''
+  if (person.institutionId) {
+    editedItem.value.institutionId = Number(person.institutionId)
+  }
   showPersonLookup.value = false
 }
 </script>

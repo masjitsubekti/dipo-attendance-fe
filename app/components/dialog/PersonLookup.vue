@@ -16,22 +16,44 @@
       <UiRow>
         <UiCol :cols="12" md="3">
           <UiAutocomplete
-            v-model="filterLocal.jobPositionId"
-            :options="listJobPosition"
+            v-model="filterLocal.institutionId"
+            :options="listInstitution"
             item-value="id"
             item-title="name"
-            :placeholder="getPlaceholder('select', 'Job Position')"
+            placeholder="Pilih Institusi"
             clearable
             @update:model-value="handleRefreshItems"
           />
         </UiCol>
 
-        <UiCol :cols="12" md="6"></UiCol>
+        <UiCol :cols="12" md="3">
+          <UiAutocomplete
+            v-model="filterLocal.departmentId"
+            :options="listDepartment"
+            item-value="id"
+            item-title="name"
+            placeholder="Pilih Departemen"
+            clearable
+            @update:model-value="handleRefreshItems"
+          />
+        </UiCol>
+
+        <UiCol :cols="12" md="3">
+          <UiAutocomplete
+            v-model="filterLocal.positionId"
+            :options="listPosition"
+            item-value="id"
+            item-title="name"
+            placeholder="Pilih Jabatan"
+            clearable
+            @update:model-value="handleRefreshItems"
+          />
+        </UiCol>
 
         <UiCol :cols="12" md="3">
           <UiInput
             v-model="filterLocal.q"
-            :placeholder="$t('Cari (Tekan Enter)')"
+            placeholder="Cari NIP / Nama (Enter)"
             @keydown.enter="handleRefreshItems"
           >
             <template #prefix>
@@ -55,13 +77,43 @@
         @row-click="handleRowClick"
         clickable
       >
+        <template #cell-nip="{ row: item }">
+          <span class="font-mono text-xs font-semibold text-slate-700 dark:text-slate-300">
+            {{ item.nip || '-' }}
+          </span>
+        </template>
+
         <template #cell-name="{ row: item }">
           <p class="font-medium text-slate-900 dark:text-white">
             {{ item.name }}
           </p>
-          <p class="text-xs text-slate-500">
-            {{ item.personNumber }}
-          </p>
+        </template>
+
+        <template #cell-institutionName="{ row: item }">
+          <span class="text-sm text-slate-600 dark:text-slate-400">
+            {{ item.institutionName || '-' }}
+          </span>
+        </template>
+
+        <template #cell-departmentName="{ row: item }">
+          <span class="text-sm text-slate-600 dark:text-slate-400">
+            {{ item.departmentName || '-' }}
+          </span>
+        </template>
+
+        <template #cell-positionName="{ row: item }">
+          <span class="text-sm text-slate-600 dark:text-slate-400">
+            {{ item.positionName || '-' }}
+          </span>
+        </template>
+
+        <template #cell-status="{ row: item }">
+          <UiBadge
+            :variant="item.status === 'aktif' || item.status === 'ACTIVE' ? 'success' : 'secondary'"
+            size="sm"
+          >
+            {{ item.status || 'aktif' }}
+          </UiBadge>
         </template>
       </UiTable>
 
@@ -95,8 +147,8 @@
 
     <template #footer>
       <div class="flex items-center justify-between w-full">
-        <div class="text-sm text-slate-600">
-          <span v-if="multiple && selectedIds.length > 0">
+        <div class="text-sm text-slate-600 dark:text-slate-400">
+          <span v-if="multiple && selectedIds.length > 0" class="font-medium text-primary-600">
             {{ selectedIds.length }} {{ $t('dipilih') }}
           </span>
         </div>
@@ -106,7 +158,7 @@
             {{ $t('Batal') }}
           </UiButton>
 
-          <UiButton color="error" @click="handleAddToQueue">
+          <UiButton color="primary" @click="handleAddToQueue">
             <i class="mdi mdi-plus mr-1"></i>
             {{ $t('Tambahkan') }}
           </UiButton>
@@ -118,9 +170,9 @@
 
 <script setup lang="ts">
 import personService from '@/services/person.service'
-// import jobPositionService from '@/services/job-position.service'
-import { useFormText } from '~/composables/useFormText'
-import { useTranslation } from '~/composables/useTranslation'
+import institutionService from '@/services/institution.service'
+import departmentService from '@/services/department.service'
+import positionService from '@/services/position.service'
 
 interface Props {
   modelValue: boolean
@@ -143,15 +195,16 @@ const emit = defineEmits<{
   (e: 'add-to-queue', items: any[]): void
 }>()
 
-const { t } = useTranslation()
-const { getPlaceholder } = useFormText()
-
 const personSvc = personService()
-// const jobPositionSvc = jobPositionService()
+const instSvc = institutionService()
+const deptSvc = departmentService()
+const posSvc = positionService()
 
 const isLoading = ref(false)
 const selectedIds = ref<number[]>([])
-const listJobPosition = ref<any[]>([])
+const listInstitution = ref<any[]>([])
+const listDepartment = ref<any[]>([])
+const listPosition = ref<any[]>([])
 
 const itemsPerPageOptions = [
   { value: 10, title: '10' },
@@ -164,7 +217,9 @@ const filterLocal = ref({
   q: '',
   pageNumber: 1,
   pageSize: 10,
-  jobPositionId: null as number | null,
+  institutionId: null as number | null,
+  departmentId: null as number | null,
+  positionId: null as number | null,
   sortBy: 'name',
   sortType: 'asc' as 'asc' | 'desc',
 })
@@ -183,12 +238,16 @@ const isOpen = computed({
 })
 
 const dialogTitle = computed(() => {
-  return props.title || 'Pilih Employee'
+  return props.title || 'Pilih Pegawai'
 })
 
 const headers = computed(() => [
-  { key: 'name', label: t('Nama'), sortable: true },
-  { key: 'jobPositionName', label: t('Job Position'), sortable: true },
+  { key: 'nip', label: 'NIP', sortable: true },
+  { key: 'name', label: 'Nama', sortable: true },
+  { key: 'institutionName', label: 'Institusi', sortable: true },
+  { key: 'departmentName', label: 'Departemen', sortable: true },
+  { key: 'positionName', label: 'Jabatan', sortable: true },
+  { key: 'status', label: 'Status', sortable: true },
 ])
 
 const handleSort = ({ key, order }: { key: string; order: 'asc' | 'desc' }) => {
@@ -218,18 +277,26 @@ function initFilter() {
   filterLocal.value.q = props.search || ''
   filterLocal.value.pageNumber = 1
   filterLocal.value.pageSize = 10
-  filterLocal.value.jobPositionId = null
+  filterLocal.value.institutionId = null
+  filterLocal.value.departmentId = null
+  filterLocal.value.positionId = null
   filterLocal.value.sortBy = 'name'
   filterLocal.value.sortType = 'asc'
   selectedIds.value = []
 
-  loadAllJobPosition()
+  loadDropdowns()
 }
 
-async function loadAllJobPosition() {
-  // await jobPositionSvc.retrieveAll({}).then((res: any) => {
-  //   listJobPosition.value = res.data || []
-  // })
+async function loadDropdowns() {
+  instSvc.all().then((res: any) => {
+    listInstitution.value = res.data || []
+  })
+  deptSvc.all().then((res: any) => {
+    listDepartment.value = res.data || []
+  })
+  posSvc.all().then((res: any) => {
+    listPosition.value = res.data || []
+  })
 }
 
 function loadData() {
@@ -242,7 +309,9 @@ function loadData() {
       pageNumber: filterLocal.value.pageNumber,
       sortBy: filterLocal.value.sortBy,
       sortType: filterLocal.value.sortType,
-      jobPositionId: filterLocal.value.jobPositionId,
+      institutionId: filterLocal.value.institutionId,
+      departmentId: filterLocal.value.departmentId,
+      positionId: filterLocal.value.positionId,
     })
     .then((res: any) => {
       tableData.value = {
@@ -251,7 +320,7 @@ function loadData() {
       }
     })
     .catch((error: any) => {
-      console.error('Failed to load person', error)
+      console.error('Failed to load person data', error)
       tableData.value = {
         items: [],
         meta: { totalItems: 0 },
@@ -307,4 +376,3 @@ watch(
   },
 )
 </script>
-```

@@ -76,8 +76,6 @@ const headers = computed(() => [
   { key: "code", title: "Kode", sortable: true },
   { key: "name", title: "Nama Shift", sortable: true },
   { key: "institutionName", title: "Institusi", sortable: true },
-  { key: "lateTolerance", title: "Toleransi Telat (m)", sortable: true, align: "center" },
-  { key: "earlyLeaveTolerance", title: "Toleransi Pulang Cepat (m)", sortable: true, align: "center" },
   { key: "isActive", title: "Status", align: "center" },
   { key: "actions", title: "Aksi", align: "center", width: "10%" },
 ]);

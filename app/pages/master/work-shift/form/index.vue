@@ -4,7 +4,7 @@
       <LayoutBreadcrumb :items="breadcrumbs" />
     </div>
 
-    <UiCard class="w-full border border-slate-200 dark:border-slate-700 shadow-sm rounded-md p-6">
+    <UiCard>
       <div class="flex items-center gap-3 mb-6">
         <UiIcon
           name="mdi-arrow-left"
@@ -19,8 +19,8 @@
       <UiForm ref="formRef" class="mt-6">
         <!-- Header Section -->
         <div class="space-y-4">
-          <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200 border-b pb-2">
-            Informasi Shift (Header)
+          <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200 pb-2">
+            Informasi Shift
           </h3>
 
           <UiRow>
@@ -42,9 +42,6 @@
                 :rules="[(v) => !!v || 'Wajib diisi']"
               />
             </UiCol>
-          </UiRow>
-
-          <UiRow>
             <UiCol cols="12" md="6">
               <UiAutocomplete
                 v-model="form.institutionId"
@@ -57,33 +54,11 @@
               />
             </UiCol>
             <UiCol cols="12" md="6">
-              <UiAutocomplete
+              <UiSwitch
                 v-model="form.isActive"
                 label="Status Shift"
-                placeholder="Pilih Status"
-                :options="statusOptions"
-                item-value="id"
-                item-title="name"
-                required
-              />
-            </UiCol>
-          </UiRow>
-
-          <UiRow>
-            <UiCol cols="12" md="6">
-              <UiInput
-                v-model.number="form.lateTolerance"
-                type="number"
-                label="Toleransi Keterlambatan (Menit)"
-                placeholder="0"
-              />
-            </UiCol>
-            <UiCol cols="12" md="6">
-              <UiInput
-                v-model.number="form.earlyLeaveTolerance"
-                type="number"
-                label="Toleransi Pulang Cepat (Menit)"
-                placeholder="0"
+                layout="stacked"
+                :value-text="form.isActive ? 'Aktif' : 'Nonaktif'"
               />
             </UiCol>
           </UiRow>
@@ -91,7 +66,7 @@
 
         <!-- Detail Section (7 Days Grid) -->
         <div class="mt-8 space-y-4">
-          <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200 border-b pb-2">
+          <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200 pb-2">
             Jadwal Harian (Detail Shift)
           </h3>
 
@@ -99,10 +74,11 @@
             <table class="w-full text-sm text-left text-slate-600 dark:text-slate-300">
               <thead class="text-xs uppercase bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold">
                 <tr>
-                  <th class="py-3 px-4 w-36">Hari</th>
-                  <th class="py-3 px-4 w-28 text-center">Hari Kerja</th>
-                  <th class="py-3 px-4">Masuk (Check-in)</th>
-                  <th class="py-3 px-4">Pulang (Check-out)</th>
+                  <th class="py-3 px-4 w-28">Hari</th>
+                  <th class="py-3 px-4 w-24 text-center">Kerja</th>
+                  <th class="py-3 px-4 min-w-[250px]">Preset Jam Kerja</th>
+                  <th class="py-3 px-4 min-w-[180px]">Jam Kerja (Wajib)</th>
+                  <th class="py-3 px-4 min-w-[220px]">Rentang Presensi</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
@@ -118,35 +94,33 @@
                     />
                   </td>
                   <td class="py-3 px-4">
-                    <div class="flex items-center gap-2" v-if="d.isWorkingDay">
-                      <UiInput
-                        v-model="d.checkinStart"
-                        placeholder="Awal (07:00)"
+                    <div v-if="d.isWorkingDay">
+                      <UiAutocomplete
+                        v-model="d.workTimeId"
+                        placeholder="Pilih Preset Jam Kerja"
+                        :options="listWorkTime"
+                        item-value="id"
+                        item-title="name"
+                        clearable
                         size="sm"
-                      />
-                      <span>s/d</span>
-                      <UiInput
-                        v-model="d.checkinEnd"
-                        placeholder="Akhir (08:00)"
-                        size="sm"
+                        @update:model-value="(val) => onWorkTimeChange(d, val)"
                       />
                     </div>
                     <span v-else class="text-slate-400 italic">Libur</span>
                   </td>
                   <td class="py-3 px-4">
-                    <div class="flex items-center gap-2" v-if="d.isWorkingDay">
-                      <UiInput
-                        v-model="d.checkoutStart"
-                        placeholder="Awal (16:00)"
-                        size="sm"
-                      />
-                      <span>s/d</span>
-                      <UiInput
-                        v-model="d.checkoutEnd"
-                        placeholder="Akhir (17:00)"
-                        size="sm"
-                      />
+                    <div v-if="d.isWorkingDay && (d.workStartTime || d.workEndTime)" class="font-semibold text-slate-800 dark:text-slate-200">
+                      {{ d.workStartTime || '-' }} - {{ d.workEndTime || '-' }}
                     </div>
+                    <span v-else-if="d.isWorkingDay" class="text-slate-400 italic">Pilih jam kerja</span>
+                    <span v-else class="text-slate-400 italic">Libur</span>
+                  </td>
+                  <td class="py-3 px-4 text-xs space-y-1">
+                    <div v-if="d.isWorkingDay && (d.checkinStart || d.checkoutStart)">
+                      <div><span class="font-medium">Masuk:</span> {{ d.checkinStart || '-' }} - {{ d.checkinEnd || '-' }}</div>
+                      <div><span class="font-medium">Pulang:</span> {{ d.checkoutStart || '-' }} - {{ d.checkoutEnd || '-' }}</div>
+                    </div>
+                    <span v-else-if="d.isWorkingDay" class="text-slate-400 italic">-</span>
                     <span v-else class="text-slate-400 italic">Libur</span>
                   </td>
                 </tr>
@@ -175,6 +149,7 @@
 
 <script setup lang="ts">
 import workShiftService from "@/services/work-shift.service";
+import workTimeService from "@/services/work-time.service";
 import institutionService from "@/services/institution.service";
 import { useSwal } from "~/composables/useSwal";
 
@@ -193,13 +168,22 @@ const route = useRoute();
 const router = useRouter();
 const swal = useSwal();
 const workShiftSvc = workShiftService();
+const workTimeSvc = workTimeService();
 const institutionSvc = institutionService();
+
+const breadcrumbs = computed(() => [
+  { label: "Dashboard", to: "/" },
+  { label: "Master Data" },
+  { label: "Jam Kerja", to: "/master/work-shift" },
+  { label: isEditing.value ? "Ubah" : "Tambah" },
+]);
 
 const isLoadingSave = ref(false);
 const isEditing = computed(() => !!route.query.id);
 const formRef = ref<{ validate: () => Promise<boolean> } | null>(null);
 
 const listInstitution: any = ref([]);
+const listWorkTime: any = ref([]);
 
 const statusOptions = [
   { id: true, name: "Aktif" },
@@ -223,10 +207,13 @@ function getDayName(day: number) {
 const defaultDetails = [1, 2, 3, 4, 5, 6, 7].map((day) => ({
   dayOfWeek: day,
   isWorkingDay: day <= 5,
-  checkinStart: day <= 5 ? "07:00" : "",
-  checkinEnd: day <= 5 ? "08:00" : "",
-  checkoutStart: day <= 5 ? "16:00" : "",
-  checkoutEnd: day <= 5 ? "17:00" : "",
+  workTimeId: null as number | null,
+  workStartTime: "",
+  workEndTime: "",
+  checkinStart: "",
+  checkinEnd: "",
+  checkoutStart: "",
+  checkoutEnd: "",
 }));
 
 const defaultItem = {
@@ -234,8 +221,6 @@ const defaultItem = {
   code: "",
   name: "",
   institutionId: null as number | null,
-  lateTolerance: 0,
-  earlyLeaveTolerance: 0,
   isActive: true,
   details: defaultDetails,
 };
@@ -250,12 +235,35 @@ onMounted(async () => {
 });
 
 async function loadOptions() {
-  await institutionSvc
-    .retrieveAll()
-    .then((res: any) => {
+  await Promise.all([
+    institutionSvc.retrieveAll().then((res: any) => {
       if (res.data) listInstitution.value = res.data;
-    })
-    .catch(() => {});
+    }).catch(() => {}),
+    workTimeSvc.retrieveAll().then((res: any) => {
+      if (res.data) listWorkTime.value = res.data;
+    }).catch(() => {}),
+  ]);
+}
+
+function onWorkTimeChange(detailRow: any, workTimeId: any) {
+  if (!workTimeId) {
+    detailRow.workStartTime = "";
+    detailRow.workEndTime = "";
+    detailRow.checkinStart = "";
+    detailRow.checkinEnd = "";
+    detailRow.checkoutStart = "";
+    detailRow.checkoutEnd = "";
+    return;
+  }
+  const wt = listWorkTime.value.find((item: any) => Number(item.id) === Number(workTimeId));
+  if (wt) {
+    detailRow.workStartTime = wt.workStartTime ?? wt.work_start_time ?? "";
+    detailRow.workEndTime = wt.workEndTime ?? wt.work_end_time ?? "";
+    detailRow.checkinStart = wt.checkinStart ?? wt.checkin_start ?? "";
+    detailRow.checkinEnd = wt.checkinEnd ?? wt.checkin_end ?? "";
+    detailRow.checkoutStart = wt.checkoutStart ?? wt.checkout_start ?? "";
+    detailRow.checkoutEnd = wt.checkoutEnd ?? wt.checkout_end ?? "";
+  }
 }
 
 async function loadData(id: any) {
@@ -275,6 +283,9 @@ async function loadData(id: any) {
             return {
               dayOfWeek: day,
               isWorkingDay: existing.isWorkingDay ?? existing.is_working_day ?? true,
+              workTimeId: existing.workTimeId ?? existing.work_time_id ?? null,
+              workStartTime: existing.workStartTime ?? existing.work_start_time ?? "",
+              workEndTime: existing.workEndTime ?? existing.work_end_time ?? "",
               checkinStart: existing.checkinStart ?? existing.checkin_start ?? "",
               checkinEnd: existing.checkinEnd ?? existing.checkin_end ?? "",
               checkoutStart: existing.checkoutStart ?? existing.checkout_start ?? "",
@@ -284,10 +295,13 @@ async function loadData(id: any) {
           return {
             dayOfWeek: day,
             isWorkingDay: day <= 5,
-            checkinStart: day <= 5 ? "07:00" : "",
-            checkinEnd: day <= 5 ? "08:00" : "",
-            checkoutStart: day <= 5 ? "16:00" : "",
-            checkoutEnd: day <= 5 ? "17:00" : "",
+            workTimeId: null,
+            workStartTime: "",
+            workEndTime: "",
+            checkinStart: "",
+            checkinEnd: "",
+            checkoutStart: "",
+            checkoutEnd: "",
           };
         });
 

@@ -331,15 +331,13 @@ function save() {
       permission = joinPermission(el);
     }
 
-    if (permission || isMainPage) {
-      menu.push({
-        id: el.id,
-        menuId: el.menuId,
-        roleId: filter.value.roleId,
-        permission: permission || null,
-        mainPage: isMainPage,
-      });
-    }
+    menu.push({
+      id: el.id,
+      menuId: el.menuId,
+      roleId: filter.value.roleId,
+      permission: permission || null,
+      mainPage: isMainPage,
+    });
 
     if (el.children) {
       el.children.forEach((el2: any) => {
@@ -351,15 +349,13 @@ function save() {
           permission2 = joinPermission(el2);
         }
 
-        if (permission2 || isMainPage2) {
-          menu.push({
-            id: el2.id,
-            menuId: el2.menuId,
-            roleId: filter.value.roleId,
-            permission: permission2 || null,
-            mainPage: isMainPage2,
-          });
-        }
+        menu.push({
+          id: el2.id,
+          menuId: el2.menuId,
+          roleId: filter.value.roleId,
+          permission: permission2 || null,
+          mainPage: isMainPage2,
+        });
       });
     }
   });

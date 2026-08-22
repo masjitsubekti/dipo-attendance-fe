@@ -81,7 +81,6 @@ export const useAuthStore = defineStore("auth", {
                     password
                 });
 
-
                 const data = res.data || res;
                 const accessToken = data.token?.accessToken || data.token;
                 const userData = data.user;

@@ -216,13 +216,17 @@ function loadAllRole() {
     });
 }
 
-// Handle role change
-function handleRoleChange(role: any) {
-  if (role) {
+// Handle role change via watch
+watch(() => filter.value.roleId, (newVal) => {
+  if (newVal) {
     loadMenus();
   } else {
     listMenu.value = [];
   }
+});
+
+function handleRoleChange(role: any) {
+  if (role) loadMenus();
 }
 
 // Load menus with permissions

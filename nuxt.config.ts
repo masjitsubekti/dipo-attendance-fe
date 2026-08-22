@@ -75,7 +75,7 @@ export default defineNuxtConfig({
     // Development proxy - rewrites /api to /v1
     devProxy: {
       "/api": {
-        target: `${API_HOST}/api`,
+        target: `${API_HOST}/v1`,
         changeOrigin: true,
       },
     },

@@ -9,7 +9,7 @@
       :tableData="tableData"
       :loading="isLoading"
       :filterSchema="filterSchema"
-      :filterList="{ listInstitution, listPosition, listDepartment, listStatus }"
+      :filterList="{ listInstitution }"
       :actions="actions"
       :actionToolbars="actionToolbars"
       :actionLoading="{ exportItem: isExporting }"
@@ -19,13 +19,9 @@
       @deleteItem="deleteItem"
       @exportItem="exportItem"
     >
-      <template v-slot:[`item.tmt`]="{ value }">
-        {{ formatDate(value) }}
-      </template>
-
-      <template v-slot:[`item.status`]="{ value }">
-        <UiBadge :variant="value === 'aktif' || value === 'Aktif' ? 'success' : 'danger'">
-          {{ value || 'Aktif' }}
+      <template v-slot:['item.isActive']="{ value }">
+        <UiBadge :variant="value || value === 1 ? 'success' : 'danger'">
+          {{ value || value === 1 ? 'Aktif' : 'Nonaktif' }}
         </UiBadge>
       </template>
     </TableList>
@@ -33,19 +29,17 @@
 </template>
 
 <script setup lang="ts">
-import personService from "@/services/person.service";
+import workShiftService from "@/services/work-shift.service";
 import institutionService from "@/services/institution.service";
-import positionService from "@/services/position.service";
-import departmentService from "@/services/department.service";
 import { useSwal } from "~/composables/useSwal";
 import { useExcelExport } from "~/composables/useExcelExport";
 
 definePageMeta({
   layout: "admin",
-  permission: "PERSON.VIEW",
+  permission: "WORK_SHIFT.VIEW",
 });
 
-const pageTitle = "Pegawai / Pengajar";
+const pageTitle = "Master Jam Kerja / Shift";
 
 useHead({
   title: pageTitle,
@@ -54,25 +48,14 @@ useHead({
 const route = useRoute();
 const router = useRouter();
 const swal = useSwal();
-const personSvc = personService();
+const workShiftSvc = workShiftService();
 const institutionSvc = institutionService();
-const positionSvc = positionService();
-const departmentSvc = departmentService();
 const { isExporting, exportToExcel } = useExcelExport();
 
 const isLoading = ref(false);
 const itemPerPage = ref(10);
 
 const listInstitution: any = ref([]);
-const listPosition: any = ref([]);
-const listDepartment: any = ref([]);
-
-const listStatus = ref([
-  { id: "aktif", name: "Aktif" },
-  { id: "nonaktif", name: "Nonaktif" },
-  { id: "cuti", name: "Cuti" },
-  { id: "pensiun", name: "Pensiun" },
-]);
 
 const tableData: any = ref({
   items: [],
@@ -81,7 +64,7 @@ const tableData: any = ref({
   },
 });
 
-const tableTitle = computed(() => "Data Pegawai & Pengajar");
+const tableTitle = computed(() => "Daftar Master Jam Kerja / Shift");
 
 const breadcrumbs = computed(() => [
   { label: "Dashboard", to: "/" },
@@ -90,15 +73,12 @@ const breadcrumbs = computed(() => [
 ]);
 
 const headers = computed(() => [
-  { key: "nip", title: "NIP / ID", sortable: true },
-  { key: "name", title: "Nama Pegawai", sortable: true },
+  { key: "code", title: "Kode", sortable: true },
+  { key: "name", title: "Nama Shift", sortable: true },
   { key: "institutionName", title: "Institusi", sortable: true },
-  { key: "positionName", title: "Jabatan", sortable: true },
-  { key: "departmentName", title: "Departemen", sortable: true },
-  { key: "gender", title: "L/P", sortable: true, align: "center" },
-  { key: "tmt", title: "TMT", sortable: true },
-  { key: "phone", title: "Telepon", sortable: false },
-  { key: "status", title: "Status", align: "center" },
+  { key: "lateTolerance", title: "Toleransi Telat (m)", sortable: true, align: "center" },
+  { key: "earlyLeaveTolerance", title: "Toleransi Pulang Cepat (m)", sortable: true, align: "center" },
+  { key: "isActive", title: "Status", align: "center" },
   { key: "actions", title: "Aksi", align: "center", width: "10%" },
 ]);
 
@@ -108,33 +88,15 @@ const filterSchema = computed(() => [
     type: "autocomplete" as const,
     items: "listInstitution",
     placeholder: "Pilih Institusi",
-    colMd: 2,
+    colMd: 3,
     valueKey: "id",
     textKey: "name",
   },
-  {
-    name: "positionId",
-    type: "autocomplete" as const,
-    items: "listPosition",
-    placeholder: "Pilih Jabatan",
-    colMd: 2,
-    valueKey: "id",
-    textKey: "name",
-  },
-  {
-    name: "departmentId",
-    type: "autocomplete" as const,
-    items: "listDepartment",
-    placeholder: "Pilih Departemen",
-    colMd: 2,
-    valueKey: "id",
-    textKey: "name",
-  },
-  { name: "", type: "text" as const, colMd: 2 },
+  { name: "", type: "text" as const, colMd: 5 },
   {
     name: "q",
     type: "search" as const,
-    placeholder: "Cari (Tekan Enter)",
+    placeholder: "Cari Kode / Nama Shift...",
     colMd: 4,
   },
 ]);
@@ -179,47 +141,20 @@ onMounted(() => {
 });
 
 async function loadOptions() {
-  await Promise.all([
-    institutionSvc.retrieveAll().then((res: any) => {
+  await institutionSvc
+    .retrieveAll()
+    .then((res: any) => {
       if (res.data) listInstitution.value = res.data;
-    }).catch(() => {}),
-    positionSvc.retrieveAll().then((res: any) => {
-      if (res.data) listPosition.value = res.data;
-    }).catch(() => {}),
-    departmentSvc.retrieveAll().then((res: any) => {
-      if (res.data) listDepartment.value = res.data;
-    }).catch(() => {}),
-  ]);
-}
-
-function formatDate(value: any) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+    })
+    .catch(() => {});
 }
 
 async function loadAll() {
-  const {
-    pageNumber,
-    pageSize,
-    q,
-    sortBy,
-    sortType,
-    institutionId,
-    positionId,
-    departmentId,
-    status,
-  } = route.query;
+  const { pageNumber, pageSize, q, sortBy, sortType, institutionId } = route.query;
 
   isLoading.value = true;
 
-  await personSvc
+  await workShiftSvc
     .retrieve({
       q: q,
       pageSize: pageSize ? pageSize : itemPerPage.value,
@@ -227,9 +162,6 @@ async function loadAll() {
       sortBy: sortBy,
       sortType: sortType,
       institutionId: institutionId,
-      positionId: positionId,
-      departmentId: departmentId,
-      status: status,
     })
     .then((res: any) => {
       tableData.value = {
@@ -246,22 +178,22 @@ async function loadAll() {
 }
 
 function addItem() {
-  router.push('/master/person/form');
+  router.push('/master/work-shift/form');
 }
 
 async function editItem(row: any) {
-  router.push(`/master/person/form?id=${row.id}`);
+  router.push('/master/work-shift/form?id=' + row.id);
 }
 
 async function deleteItem(row: any) {
   const result = await swal.confirmDelete(row.name, {
     title: "Hapus Data",
-    text: `Apakah Anda yakin ingin menghapus data "${row.name}"?`,
+    text: 'Apakah Anda yakin ingin menghapus shift "' + row.name + '"?',
     confirmText: "Ya",
     cancelText: "Batal",
     preConfirm: async () => {
       await Promise.all([
-        personSvc.destroy(row.id),
+        workShiftSvc.destroy(row.id),
         new Promise((resolve) => setTimeout(resolve, 1000)),
       ]);
     },
@@ -274,18 +206,15 @@ async function deleteItem(row: any) {
 }
 
 async function exportItem() {
-  const { q, sortBy, sortType, institutionId, positionId, departmentId, status } = route.query;
+  const { q, sortBy, sortType, institutionId } = route.query;
 
-  const response: any = await personSvc.retrieve({
+  const response: any = await workShiftSvc.retrieve({
     q: q,
     pageSize: 1,
     pageNumber: 1,
     sortBy: sortBy,
     sortType: sortType,
     institutionId: institutionId,
-    positionId: positionId,
-    departmentId: departmentId,
-    status: status,
     ignorePaging: true,
   });
 
@@ -299,16 +228,12 @@ async function exportItem() {
       subtitle: pageTitle,
     },
     columns: [
-      { header: "NIP", key: "nip", width: 20 },
-      { header: "Nama", key: "name", width: 40 },
-      { header: "Jenis Kelamin", key: "gender", width: 15 },
+      { header: "Kode Shift", key: "code", width: 20 },
+      { header: "Nama Shift", key: "name", width: 35 },
       { header: "Institusi", key: "institutionName", width: 30 },
-      { header: "Jabatan", key: "positionName", width: 30 },
-      { header: "Departemen", key: "departmentName", width: 30 },
-      { header: "TMT", key: "tmt", width: 20 },
-      { header: "Telepon", key: "phone", width: 20 },
-      { header: "Email", key: "email", width: 30 },
-      { header: "Status", key: "status", width: 15 },
+      { header: "Toleransi Telat (Menit)", key: "lateTolerance", width: 25 },
+      { header: "Toleransi Pulang Cepat (Menit)", key: "earlyLeaveTolerance", width: 25 },
+      { header: "Status", key: "isActive", width: 15 },
     ],
   });
 }

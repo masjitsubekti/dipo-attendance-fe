@@ -9,7 +9,7 @@
       :tableData="tableData"
       :loading="isLoading"
       :filterSchema="filterSchema"
-      :filterList="{ listCity }"
+      :filterList="{ listInstitution }"
       :actions="actions"
       :actionToolbars="actionToolbars"
       :actionLoading="{ exportItem: isExporting }"
@@ -17,25 +17,18 @@
       @addItem="addItem"
       @editItem="editItem"
       @deleteItem="deleteItem"
-      @importItem="importItem"
       @exportItem="exportItem"
-    >
-      <template v-slot:[`item.isActive`]="{ value }">
-        <UiBadge :variant="value ? 'success' : 'danger'">
-          {{ value ? 'Aktif' : 'Nonaktif' }}
-        </UiBadge>
-      </template>
-    </TableList>
+    />
 
-    <UiModal v-model="showDialog" :title="dialogTitle" persistent>
+    <UiModal v-model="showDialog" :title="dialogTitle" persistent size="md">
       <UiForm ref="formRef">
         <div class="space-y-3">
           <UiRow>
             <UiCol cols="12" md="12">
               <UiInput
                 v-model="editedItem.code"
-                label="Kode"
-                placeholder="Masukkan Kode"
+                label="Kode Jabatan"
+                placeholder="Masukkan Kode Jabatan"
                 required
                 :rules="[(v) => !!v || 'Wajib diisi']"
               />
@@ -43,50 +36,30 @@
             <UiCol cols="12" md="12">
               <UiInput
                 v-model="editedItem.name"
-                label="Nama"
-                placeholder="Masukkan Nama"
+                label="Nama Jabatan"
+                placeholder="Masukkan Nama Jabatan"
                 required
                 :rules="[(v) => !!v || 'Wajib diisi']"
               />
             </UiCol>
           </UiRow>
+
           <UiRow>
             <UiCol cols="12" md="12">
               <UiAutocomplete
-                v-model="editedItem.cityId"
-                label="Kota"
-                placeholder="Pilih Kota"
-                :options="listCity"
+                v-model="editedItem.institutionId"
+                label="Institusi / Sekolah"
+                placeholder="Pilih Institusi (Opsional)"
+                :options="listInstitution"
                 item-value="id"
-                :item-title="(item) => `${item.code} - ${item.name}`"
-                required
-                :rules="[(v) => !!v || 'Wajib diisi']"
+                item-title="name"
                 clearable
               />
             </UiCol>
           </UiRow>
-          <UiRow>
-            <UiCol cols="12" md="12">
-              <UiTextarea
-                v-model="editedItem.description"
-                label="Deskripsi"
-                placeholder="Masukkan Deskripsi"
-                :rows="2"
-              />
-            </UiCol>
-          </UiRow>
-          <UiRow>
-              <UiCol cols="12" md="12">
-                <UiSwitch 
-                  v-model="editedItem.isActive"
-                  label="Status"
-                  layout="stacked"
-                  :valueText="editedItem.isActive ? 'Aktif' : 'Nonaktif'"
-                />
-              </UiCol>
-            </UiRow>     
         </div>
       </UiForm>
+
       <template #footer>
         <UiButton color="secondary" @click="showDialog = false">
           Batal
@@ -100,30 +73,29 @@
 </template>
 
 <script setup lang="ts">
-import { useAuthStore } from "~/stores/auth";
-import airportService from "@/services/airport.service";
+import positionService from "@/services/position.service";
+import institutionService from "@/services/institution.service";
 import { useSwal } from "~/composables/useSwal";
 import { useExcelExport } from "~/composables/useExcelExport";
 
 definePageMeta({
   layout: "admin",
-  permission: "AIRPORT.VIEW",
+  permission: "POSITION.VIEW",
 });
 
-const pageTitle = "Bandara";
+const pageTitle = "Jabatan";
 
 useHead({
   title: pageTitle,
 });
 
-const authStore = useAuthStore();
 const route = useRoute();
 const swal = useSwal();
-const airportSvc = airportService();
+const positionSvc = positionService();
+const institutionSvc = institutionService();
 const { isExporting, exportToExcel } = useExcelExport();
 
 const showDialog = ref(false);
-const showImportDialog = ref(false);
 const isEditing = ref(false);
 
 const isLoading = ref(false);
@@ -135,15 +107,13 @@ const formRef = ref<{
   resetValidation: () => void;
 } | null>(null);
 
-const listCity: any = ref([]);
+const listInstitution = ref([]);
 
 const defaultItem = {
   id: null as number | null,
-  cityId: null as number | null,
-  name: "",
   code: "",
-  description: null as string | null,
-  isActive: true,
+  name: "",
+  institutionId: null as number | null,
 };
 
 const editedItem: any = ref({ ...defaultItem });
@@ -155,10 +125,10 @@ const tableData: any = ref({
   },
 });
 
-const tableTitle = computed(() => "Data Bandara");
+const tableTitle = computed(() => "Data Jabatan");
 
 const dialogTitle = computed(() => {
-  return isEditing.value ? "Ubah Data Bandara" : "Tambah Data Bandara";
+  return isEditing.value ? "Ubah Data Jabatan" : "Tambah Data Jabatan";
 });
 
 const breadcrumbs = computed(() => [
@@ -168,28 +138,23 @@ const breadcrumbs = computed(() => [
 ]);
 
 const headers = computed(() => [
-  {
-    key: "code",
-    title: "Kode",
-    sortable: true,
-  },
-  { key: "name", title: "Nama", sortable: true },
-  { key: "cityName", title: "Kota", sortable: true },
-  { key: 'isActive', title: 'Status', align: 'center' },
+  { key: "code", title: "Kode", sortable: true },
+  { key: "name", title: "Nama Jabatan", sortable: true },
+  { key: "institutionName", title: "Institusi", sortable: true },
   { key: "actions", title: "Aksi", align: "center", width: "10%" },
 ]);
 
 const filterSchema = computed(() => [
   {
-    name: 'cityId',
-    type: 'autocomplete' as const,
-    items: 'listCity',
-    placeholder: 'Pilih Kota',
-    colMd: 3,
-    valueKey: 'id',
-    textKey: 'name',
+    name: "institutionId",
+    type: "autocomplete" as const,
+    items: "listInstitution",
+    placeholder: "Pilih Institusi",
+    colMd: 4,
+    valueKey: "id",
+    textKey: "name",
   },
-  { name: "", type: "text" as const, colMd: 5 },
+  { name: "", type: "text" as const, colMd: 4 },
   {
     name: "q",
     type: "search" as const,
@@ -225,13 +190,6 @@ const actionToolbars = computed(() => [
     type: "default" as const,
   },
   {
-    key: "importItem",
-    icon: "mdi-file-import",
-    color: "white",
-    tooltip: "Import",
-    emit: "importItem",
-  },
-  {
     key: "exportItem",
     icon: "mdi-file-excel",
     color: "white",
@@ -241,25 +199,34 @@ const actionToolbars = computed(() => [
 ]);
 
 onMounted(() => {
-  loadAllCity();
+  loadInstitutions();
 });
 
-function loadAllCity() {
-  listCity.value = [];
+async function loadInstitutions() {
+  await institutionSvc
+    .retrieveAll()
+    .then((res: any) => {
+      if (res.data) {
+        listInstitution.value = res.data;
+      }
+    })
+    .catch((err: any) => {
+      console.error("Failed to load institutions", err);
+    });
 }
 
 async function loadAll() {
-  const { pageNumber, pageSize, q, sortBy, sortType, cityId } = route.query;
+  const { pageNumber, pageSize, q, sortBy, sortType, institutionId } = route.query;
   isLoading.value = true;
-  await airportSvc
+  await positionSvc
     .retrieve({
       q: q,
       pageSize: pageSize ? pageSize : itemPerPage.value,
       pageNumber: pageNumber ? pageNumber : 1,
       sortBy: sortBy,
       sortType: sortType,
-      cityId: cityId,
-    })
+      institutionId: institutionId,
+    })  
     .then((res: any) => {
       isLoading.value = false;
       tableData.value = {
@@ -283,9 +250,12 @@ function addItem() {
 
 async function editItem(row: any) {
   formRef.value?.resetValidation();
-  await airportSvc.retrieveById(row.id).then((res: any) => {
+  await positionSvc.retrieveById(row.id).then((res: any) => {
     if (res.data?.id) {
-      editedItem.value = res.data;
+      editedItem.value = {
+        ...res.data,
+        institutionId: res.data.institutionId ?? null,
+      };
       isEditing.value = true;
       showDialog.value = true;
     }
@@ -305,7 +275,7 @@ async function onSubmit() {
   if (!isValid) return;
 
   isLoadingSave.value = true;
-  airportSvc
+  positionSvc
     .save(editedItem.value)
     .then(() => {
       swal.toast(
@@ -331,7 +301,7 @@ async function deleteItem(row: any) {
     cancelText: "Batal",
     preConfirm: async () => {
       await Promise.all([
-        airportSvc.destroy(row.id),
+        positionSvc.destroy(row.id),
         new Promise((resolve) => setTimeout(resolve, 1000)),
       ]);
     },
@@ -343,19 +313,15 @@ async function deleteItem(row: any) {
   }
 }
 
-function importItem() {
-  showImportDialog.value = true;
-}
-
 async function exportItem() {
-  const { q, sortBy, sortType, cityId } = route.query;
-  const response: any = await airportSvc.retrieve({
+  const { q, sortBy, sortType, institutionId } = route.query;
+  const response: any = await positionSvc.retrieve({
     q: q,
     pageSize: 1,
     pageNumber: 1,
     sortBy: sortBy,
     sortType: sortType,
-    cityId: cityId,
+    institutionId: institutionId,
     ignorePaging: true,
   });
   const data = response.data?.items || [];
@@ -368,20 +334,9 @@ async function exportItem() {
       subtitle: pageTitle,
     },
     columns: [
-      {
-        header: "Kode",
-        key: "code",
-        width: 20,
-      },
-      { header: "Nama", key: "name", width: 50 },
-      { header: "Kota", key: "cityName", width: 30 },
-      { header: "Deskripsi", key: "description", width: 40 },
-      { 
-        header: 'Status', 
-        key: 'isActive', 
-        width: 20,
-        formatter: (val: any) => val ? 'Aktif' : 'Nonaktif',
-      },
+      { header: "Kode", key: "code", width: 20 },
+      { header: "Nama Jabatan", key: "name", width: 40 },
+      { header: "Institusi", key: "institutionNname", width: 40 },
     ],
   });
 }

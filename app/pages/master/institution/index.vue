@@ -9,7 +9,7 @@
       :tableData="tableData"
       :loading="isLoading"
       :filterSchema="filterSchema"
-      :filterList="{ listCity }"
+      :filterList="{ listLevel }"
       :actions="actions"
       :actionToolbars="actionToolbars"
       :actionLoading="{ exportItem: isExporting }"
@@ -17,7 +17,6 @@
       @addItem="addItem"
       @editItem="editItem"
       @deleteItem="deleteItem"
-      @importItem="importItem"
       @exportItem="exportItem"
     >
       <template v-slot:[`item.isActive`]="{ value }">
@@ -27,66 +26,95 @@
       </template>
     </TableList>
 
-    <UiModal v-model="showDialog" :title="dialogTitle" persistent>
+    <UiModal v-model="showDialog" :title="dialogTitle" persistent size="lg">
       <UiForm ref="formRef">
         <div class="space-y-3">
           <UiRow>
-            <UiCol cols="12" md="12">
+            <UiCol cols="12" md="6">
               <UiInput
                 v-model="editedItem.code"
-                label="Kode"
-                placeholder="Masukkan Kode"
+                label="Kode Institusi"
+                placeholder="Masukkan Kode Institusi"
                 required
                 :rules="[(v) => !!v || 'Wajib diisi']"
               />
             </UiCol>
-            <UiCol cols="12" md="12">
+            <UiCol cols="12" md="6">
               <UiInput
                 v-model="editedItem.name"
-                label="Nama"
-                placeholder="Masukkan Nama"
+                label="Nama Institusi / Sekolah"
+                placeholder="Masukkan Nama Institusi"
                 required
                 :rules="[(v) => !!v || 'Wajib diisi']"
               />
             </UiCol>
           </UiRow>
+
           <UiRow>
-            <UiCol cols="12" md="12">
+            <UiCol cols="12" md="6">
               <UiAutocomplete
-                v-model="editedItem.cityId"
-                label="Kota"
-                placeholder="Pilih Kota"
-                :options="listCity"
+                v-model="editedItem.levelId"
+                label="Jenjang"
+                placeholder="Pilih Jenjang"
+                :options="listLevel"
                 item-value="id"
-                :item-title="(item) => `${item.code} - ${item.name}`"
+                item-title="name"
                 required
                 :rules="[(v) => !!v || 'Wajib diisi']"
                 clearable
               />
             </UiCol>
+            <UiCol cols="12" md="6">
+              <UiInput
+                v-model="editedItem.npsn"
+                label="NPSN"
+                placeholder="Masukkan NPSN"
+              />
+            </UiCol>
           </UiRow>
+
+          <UiRow>
+            <UiCol cols="12" md="6">
+              <UiInput
+                v-model="editedItem.phone"
+                label="Telepon"
+                placeholder="Masukkan Nomor Telepon"
+              />
+            </UiCol>
+            <UiCol cols="12" md="6">
+              <UiInput
+                v-model="editedItem.email"
+                label="Email"
+                placeholder="Masukkan Alamat Email"
+                type="email"
+              />
+            </UiCol>
+          </UiRow>
+
           <UiRow>
             <UiCol cols="12" md="12">
               <UiTextarea
-                v-model="editedItem.description"
-                label="Deskripsi"
-                placeholder="Masukkan Deskripsi"
+                v-model="editedItem.address"
+                label="Alamat"
+                placeholder="Masukkan Alamat Lengkap"
                 :rows="2"
               />
             </UiCol>
           </UiRow>
+
           <UiRow>
-              <UiCol cols="12" md="12">
-                <UiSwitch 
-                  v-model="editedItem.isActive"
-                  label="Status"
-                  layout="stacked"
-                  :valueText="editedItem.isActive ? 'Aktif' : 'Nonaktif'"
-                />
-              </UiCol>
-            </UiRow>     
+            <UiCol cols="12" md="12">
+              <UiSwitch 
+                v-model="editedItem.isActive"
+                label="Status"
+                layout="stacked"
+                :valueText="editedItem.isActive ? 'Aktif' : 'Nonaktif'"
+              />
+            </UiCol>
+          </UiRow>     
         </div>
       </UiForm>
+
       <template #footer>
         <UiButton color="secondary" @click="showDialog = false">
           Batal
@@ -100,30 +128,29 @@
 </template>
 
 <script setup lang="ts">
-import { useAuthStore } from "~/stores/auth";
-import airportService from "@/services/airport.service";
+import institutionService from "@/services/institution.service";
+import levelService from "@/services/level.service";
 import { useSwal } from "~/composables/useSwal";
 import { useExcelExport } from "~/composables/useExcelExport";
 
 definePageMeta({
   layout: "admin",
-  permission: "AIRPORT.VIEW",
+  permission: "INSTITUTION.VIEW",
 });
 
-const pageTitle = "Bandara";
+const pageTitle = "Institusi";
 
 useHead({
   title: pageTitle,
 });
 
-const authStore = useAuthStore();
 const route = useRoute();
 const swal = useSwal();
-const airportSvc = airportService();
+const institutionSvc = institutionService();
+const levelSvc = levelService();
 const { isExporting, exportToExcel } = useExcelExport();
 
 const showDialog = ref(false);
-const showImportDialog = ref(false);
 const isEditing = ref(false);
 
 const isLoading = ref(false);
@@ -135,14 +162,17 @@ const formRef = ref<{
   resetValidation: () => void;
 } | null>(null);
 
-const listCity: any = ref([]);
+const listLevel = ref([]);
 
 const defaultItem = {
   id: null as number | null,
-  cityId: null as number | null,
-  name: "",
   code: "",
-  description: null as string | null,
+  name: "",
+  levelId: null as number | null,
+  npsn: "",
+  address: "",
+  phone: "",
+  email: "",
   isActive: true,
 };
 
@@ -155,10 +185,10 @@ const tableData: any = ref({
   },
 });
 
-const tableTitle = computed(() => "Data Bandara");
+const tableTitle = computed(() => "Data Institusi");
 
 const dialogTitle = computed(() => {
-  return isEditing.value ? "Ubah Data Bandara" : "Tambah Data Bandara";
+  return isEditing.value ? "Ubah Data Institusi" : "Tambah Data Institusi";
 });
 
 const breadcrumbs = computed(() => [
@@ -168,26 +198,25 @@ const breadcrumbs = computed(() => [
 ]);
 
 const headers = computed(() => [
-  {
-    key: "code",
-    title: "Kode",
-    sortable: true,
-  },
-  { key: "name", title: "Nama", sortable: true },
-  { key: "cityName", title: "Kota", sortable: true },
-  { key: 'isActive', title: 'Status', align: 'center' },
+  { key: "code", title: "Kode", sortable: true },
+  { key: "name", title: "Nama Institusi", sortable: true },
+  { key: "levelName", title: "Jenjang", sortable: true },
+  { key: "npsn", title: "NPSN", sortable: true },
+  { key: "phone", title: "Telepon", sortable: false },
+  { key: "email", title: "Email", sortable: true },
+  { key: "isActive", title: "Status", align: "center" },
   { key: "actions", title: "Aksi", align: "center", width: "10%" },
 ]);
 
 const filterSchema = computed(() => [
   {
-    name: 'cityId',
-    type: 'autocomplete' as const,
-    items: 'listCity',
-    placeholder: 'Pilih Kota',
+    name: "levelId",
+    type: "autocomplete" as const,
+    items: "listLevel",
+    placeholder: "Pilih Jenjang",
     colMd: 3,
-    valueKey: 'id',
-    textKey: 'name',
+    valueKey: "id",
+    textKey: "name",
   },
   { name: "", type: "text" as const, colMd: 5 },
   {
@@ -225,13 +254,6 @@ const actionToolbars = computed(() => [
     type: "default" as const,
   },
   {
-    key: "importItem",
-    icon: "mdi-file-import",
-    color: "white",
-    tooltip: "Import",
-    emit: "importItem",
-  },
-  {
     key: "exportItem",
     icon: "mdi-file-excel",
     color: "white",
@@ -241,24 +263,33 @@ const actionToolbars = computed(() => [
 ]);
 
 onMounted(() => {
-  loadAllCity();
+  loadAllLevel();
 });
 
-function loadAllCity() {
-  listCity.value = [];
+async function loadAllLevel() {
+  await levelSvc
+    .retrieveAll()
+    .then((res: any) => {
+      if (res.data) {
+        listLevel.value = res.data;
+      }
+    })
+    .catch((err: any) => {
+      console.error("Failed to load institution levels", err);
+    });
 }
 
 async function loadAll() {
-  const { pageNumber, pageSize, q, sortBy, sortType, cityId } = route.query;
+  const { pageNumber, pageSize, q, sortBy, sortType, levelId } = route.query;
   isLoading.value = true;
-  await airportSvc
+  await institutionSvc
     .retrieve({
       q: q,
       pageSize: pageSize ? pageSize : itemPerPage.value,
       pageNumber: pageNumber ? pageNumber : 1,
       sortBy: sortBy,
       sortType: sortType,
-      cityId: cityId,
+      levelId: levelId,
     })
     .then((res: any) => {
       isLoading.value = false;
@@ -283,7 +314,7 @@ function addItem() {
 
 async function editItem(row: any) {
   formRef.value?.resetValidation();
-  await airportSvc.retrieveById(row.id).then((res: any) => {
+  await institutionSvc.retrieveById(row.id).then((res: any) => {
     if (res.data?.id) {
       editedItem.value = res.data;
       isEditing.value = true;
@@ -305,7 +336,7 @@ async function onSubmit() {
   if (!isValid) return;
 
   isLoadingSave.value = true;
-  airportSvc
+  institutionSvc
     .save(editedItem.value)
     .then(() => {
       swal.toast(
@@ -331,7 +362,7 @@ async function deleteItem(row: any) {
     cancelText: "Batal",
     preConfirm: async () => {
       await Promise.all([
-        airportSvc.destroy(row.id),
+        institutionSvc.destroy(row.id),
         new Promise((resolve) => setTimeout(resolve, 1000)),
       ]);
     },
@@ -343,19 +374,15 @@ async function deleteItem(row: any) {
   }
 }
 
-function importItem() {
-  showImportDialog.value = true;
-}
-
 async function exportItem() {
-  const { q, sortBy, sortType, cityId } = route.query;
-  const response: any = await airportSvc.retrieve({
+  const { q, sortBy, sortType, levelId } = route.query;
+  const response: any = await institutionSvc.retrieve({
     q: q,
     pageSize: 1,
     pageNumber: 1,
     sortBy: sortBy,
     sortType: sortType,
-    cityId: cityId,
+    levelId: levelId,
     ignorePaging: true,
   });
   const data = response.data?.items || [];
@@ -368,19 +395,18 @@ async function exportItem() {
       subtitle: pageTitle,
     },
     columns: [
-      {
-        header: "Kode",
-        key: "code",
-        width: 20,
-      },
-      { header: "Nama", key: "name", width: 50 },
-      { header: "Kota", key: "cityName", width: 30 },
-      { header: "Deskripsi", key: "description", width: 40 },
+      { header: "Kode", key: "code", width: 20 },
+      { header: "Nama Institusi", key: "name", width: 40 },
+      { header: "Jenjang", key: "levelName", width: 20 },
+      { header: "NPSN", key: "npsn", width: 20 },
+      { header: "Telepon", key: "phone", width: 25 },
+      { header: "Email", key: "email", width: 35 },
+      { header: "Alamat", key: "address", width: 40 },
       { 
-        header: 'Status', 
-        key: 'isActive', 
-        width: 20,
-        formatter: (val: any) => val ? 'Aktif' : 'Nonaktif',
+        header: "Status", 
+        key: "isActive", 
+        width: 15,
+        formatter: (val: any) => val ? "Aktif" : "Nonaktif",
       },
     ],
   });

@@ -58,12 +58,12 @@ async function initMap() {
     center: props.center,
     zoom: props.zoom,
     zoomControl: true,
-    attributionControl: true,
+    attributionControl: false,
   });
 
   const streetLayer = L.tileLayer(
     'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    { attribution: '&copy; OpenStreetMap contributors' }
+    { attribution: '' }
   );
 
   const satelliteLayer = L.tileLayer(
@@ -203,5 +203,8 @@ defineExpose({
 <style>
 .leaflet-control-container .leaflet-top.leaflet-right {
   display: none;
+}
+.leaflet-control-attribution {
+  display: none !important;
 }
 </style>

@@ -152,9 +152,9 @@ onUnmounted(() => {
     <AttendanceHeader :institution-name="primaryLocation?.name" />
 
     <!-- Current time -->
-    <div class="text-center mt-2 mb-1">
+    <!-- <div class="text-center mt-2 mb-1">
       <p class="text-3xl font-bold tracking-tight tabular-nums text-slate-900 dark:text-white">{{ currentTimeFormatted }}</p>
-    </div>
+    </div> -->
 
     <!-- Status -->
     <AttendanceStatus

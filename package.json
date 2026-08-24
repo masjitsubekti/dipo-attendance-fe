@@ -25,7 +25,6 @@
     "apexcharts": "^5.3.6",
     "embla-carousel-vue": "^8.6.0",
     "exceljs": "^4.4.0",
-    "firebase": "12.2.1",
     "html-to-pdfmake": "^2.5.33",
     "leaflet": "^1.9.4",
     "moment": "^2.30.1",

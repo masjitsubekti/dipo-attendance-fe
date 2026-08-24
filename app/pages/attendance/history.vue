@@ -3,7 +3,7 @@ import { attendanceService } from '~/services/attendance.service';
 import { useToast } from '~/composables/useToast';
 import type { AttendanceRecord, AttendancePaginatedMeta } from '~/types/attendance';
 
-definePageMeta({ layout: 'attendance'});
+definePageMeta({ layout: 'admin' });
 useHead({ title: 'Riwayat Presensi' });
 
 const toast = useToast();

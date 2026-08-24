@@ -147,9 +147,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-24 transition-colors duration-200">
+  <div class="space-y-4 pb-12">
     <!-- Header -->
-    <AttendanceHeader :institution-name="primaryLocation?.name" />
+    <!-- <AttendanceHeader :institution-name="primaryLocation?.name" /> -->
 
     <!-- Current time -->
     <!-- <div class="text-center mt-2 mb-1">

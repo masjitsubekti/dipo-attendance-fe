@@ -5,75 +5,143 @@ interface Props {
   attendance: AttendanceRecord;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const { formatDate } = useFormat();
 
-const formatTime = (iso: string | null | undefined): string => {
-  if (!iso) return '—';
-  return formatDate(iso, 'HH:mm', true);
+const formatDateLabel = (iso: string): string => {
+  return formatDate(iso, 'dddd, D MMMM YYYY', true);
 };
 
-const formatDateLabel = (iso: string): string => {
-  return formatDate(iso, 'ddd, DD MMM YYYY', true);
+const formatTimeWithSeconds = (iso: string | null | undefined): string => {
+  if (!iso) return '--:--:--';
+  return formatDate(iso, 'HH:mm:ss', true);
 };
+
+const durationText = computed(() => {
+  if (!props.attendance.checkinTime || !props.attendance.checkoutTime) return null;
+  const start = new Date(props.attendance.checkinTime).getTime();
+  const end = new Date(props.attendance.checkoutTime).getTime();
+  if (isNaN(start) || isNaN(end) || end <= start) return null;
+  const diffSecs = Math.floor((end - start) / 1000);
+  const hours = Math.floor(diffSecs / 3600);
+  const minutes = Math.floor((diffSecs % 3600) / 60);
+  const seconds = diffSecs % 60;
+
+  const parts = [];
+  if (hours > 0) parts.push(`${hours} Jam`);
+  if (minutes > 0 || hours > 0) parts.push(`${minutes} Menit`);
+  parts.push(`${seconds} Detik`);
+  return parts.join(' ');
+});
 
 const statusConfig = (status: string | null) => {
   const map: Record<string, { label: string; cls: string }> = {
-    present: { label: 'Hadir', cls: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700/40' },
-    late: { label: 'Terlambat', cls: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700/40' },
-    incomplete: { label: 'Belum Lengkap', cls: 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-700/40' },
-    absent: { label: 'Tidak Hadir', cls: 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-400 border-rose-300 dark:border-rose-700/40' },
-    leave: { label: 'Cuti', cls: 'bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-400 border-violet-300 dark:border-violet-700/40' },
+    present: { label: 'Hadir', cls: 'bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border-blue-200/50 dark:border-blue-800/40' },
+    late: { label: 'Terlambat', cls: 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border-amber-200/50 dark:border-amber-800/40' },
+    incomplete: { label: 'Belum Lengkap', cls: 'bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 border-orange-200/50 dark:border-orange-800/40' },
+    absent: { label: 'Tidak Hadir', cls: 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border-rose-200/50 dark:border-rose-800/40' },
+    leave: { label: 'Cuti', cls: 'bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 border-purple-200/50 dark:border-purple-800/40' },
   };
-  return map[status || ''] ?? { label: status || '—', cls: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-700' };
+  return map[status || ''] ?? { label: status || '—', cls: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700' };
 };
 </script>
 
 <template>
-  <div class="rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm p-4 space-y-3">
-    <!-- Date header -->
-    <div class="flex items-center justify-between">
-      <p class="text-sm font-semibold text-slate-800 dark:text-white capitalize">
-        {{ formatDateLabel(attendance.attendanceDate) }}
-      </p>
+  <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-3.5 sm:p-4 space-y-2.5 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200">
+    <!-- Top Header: Date & Status Badge -->
+    <div class="flex items-start justify-between gap-2">
+      <div>
+        <h3 class="text-sm font-bold text-slate-800 dark:text-white capitalize leading-snug">
+          {{ formatDateLabel(attendance.attendanceDate) }}
+        </h3>
+        <p class="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
+          {{ durationText || (attendance.checkinTime ? 'Sedang Bekerja / Belum Checkout' : 'Belum Ada Presensi') }}
+        </p>
+      </div>
+
       <span
-        :class="['text-[11px] font-semibold px-2.5 py-1 rounded-full border', statusConfig(attendance.status).cls]"
+        :class="['text-[11px] font-semibold px-2.5 py-0.5 rounded-full border shrink-0', statusConfig(attendance.status).cls]"
       >
         {{ statusConfig(attendance.status).label }}
       </span>
     </div>
 
-    <!-- Times row -->
-    <div class="flex gap-3">
-      <div class="flex-1 bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3 border border-slate-100 dark:border-slate-700/30">
-        <p class="text-[10px] text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1">
-          <i class="mdi mdi-login text-emerald-600 dark:text-emerald-500"></i> Check In
-        </p>
-        <p class="text-base font-bold" :class="attendance.checkinTime ? 'text-slate-800 dark:text-white' : 'text-slate-400 dark:text-slate-600'">
-          {{ formatTime(attendance.checkinTime) }}
-        </p>
+    <!-- Bottom Row: Check In & Check Out with Avatars -->
+    <div class="grid grid-cols-2 gap-3 pt-1.5 border-t border-slate-100 dark:border-slate-800/60">
+      <!-- Check In Column -->
+      <div class="flex items-center gap-2">
+        <div class="shrink-0">
+          <img
+            v-if="attendance.checkinPhoto"
+            :src="attendance.checkinPhoto"
+            alt="Check In"
+            class="w-9 h-9 rounded-full object-cover border border-amber-300 dark:border-amber-500/40 shadow-xs"
+          />
+          <div
+            v-else
+            class="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-500"
+          >
+            <i class="mdi mdi-account text-xl"></i>
+          </div>
+        </div>
+
+        <div class="space-y-0.5 min-w-0">
+          <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase block">CHECK IN</span>
+          <div class="flex items-center gap-1">
+            <span
+              class="px-2 py-0.5 rounded-md border text-xs font-semibold font-mono tracking-tight"
+              :class="attendance.checkinTime ? 'bg-amber-50/70 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800/50 text-amber-700 dark:text-amber-400' : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-400'"
+            >
+              {{ formatTimeWithSeconds(attendance.checkinTime) }}
+            </span>
+            <span class="text-[10px] font-medium text-slate-400 dark:text-slate-500 hidden sm:inline">WIB</span>
+          </div>
+        </div>
       </div>
-      <div class="flex-1 bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3 border border-slate-100 dark:border-slate-700/30">
-        <p class="text-[10px] text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1">
-          <i class="mdi mdi-logout text-blue-600 dark:text-blue-500"></i> Check Out
-        </p>
-        <p class="text-base font-bold" :class="attendance.checkoutTime ? 'text-slate-800 dark:text-white' : 'text-slate-400 dark:text-slate-600'">
-          {{ formatTime(attendance.checkoutTime) }}
-        </p>
+
+      <!-- Check Out Column -->
+      <div class="flex items-center gap-2">
+        <div class="shrink-0">
+          <img
+            v-if="attendance.checkoutPhoto"
+            :src="attendance.checkoutPhoto"
+            alt="Check Out"
+            class="w-9 h-9 rounded-full object-cover border border-slate-300 dark:border-slate-700 shadow-xs"
+          />
+          <div
+            v-else
+            class="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-500"
+          >
+            <i class="mdi mdi-account text-xl"></i>
+          </div>
+        </div>
+
+        <div class="space-y-0.5 min-w-0">
+          <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase block">CHECK OUT</span>
+          <div class="flex items-center gap-1">
+            <span
+              class="px-2 py-0.5 rounded-md border text-xs font-semibold font-mono tracking-tight"
+              :class="attendance.checkoutTime ? 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200' : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-400'"
+            >
+              {{ formatTimeWithSeconds(attendance.checkoutTime) }}
+            </span>
+            <span class="text-[10px] font-medium text-slate-400 dark:text-slate-500 hidden sm:inline">WIB</span>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- Additional stats -->
-    <div v-if="attendance.lateMinutes || attendance.earlyLeaveMinutes || attendance.overtimeMinutes" class="flex flex-wrap gap-2">
-      <span v-if="attendance.lateMinutes && attendance.lateMinutes > 0" class="text-[10px] px-2 py-1 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700/30">
-        <i class="mdi mdi-clock-alert-outline mr-1"></i>Terlambat {{ attendance.lateMinutes }}m
+    <div v-if="attendance.lateMinutes || attendance.earlyLeaveMinutes || attendance.overtimeMinutes" class="flex flex-wrap gap-1.5 pt-1">
+      <span v-if="attendance.lateMinutes && attendance.lateMinutes > 0" class="text-[10px] px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700/30 font-medium">
+        <i class="mdi mdi-clock-alert-outline mr-0.5"></i>Terlambat {{ attendance.lateMinutes }}m
       </span>
-      <span v-if="attendance.earlyLeaveMinutes && attendance.earlyLeaveMinutes > 0" class="text-[10px] px-2 py-1 rounded-full bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-700/30">
-        <i class="mdi mdi-exit-run mr-1"></i>Pulang cepat {{ attendance.earlyLeaveMinutes }}m
+      <span v-if="attendance.earlyLeaveMinutes && attendance.earlyLeaveMinutes > 0" class="text-[10px] px-2 py-0.5 rounded-full bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-700/30 font-medium">
+        <i class="mdi mdi-exit-run mr-0.5"></i>Pulang cepat {{ attendance.earlyLeaveMinutes }}m
       </span>
-      <span v-if="attendance.overtimeMinutes && attendance.overtimeMinutes > 0" class="text-[10px] px-2 py-1 rounded-full bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-700/30">
-        <i class="mdi mdi-briefcase-clock mr-1"></i>Lembur {{ attendance.overtimeMinutes }}m
+      <span v-if="attendance.overtimeMinutes && attendance.overtimeMinutes > 0" class="text-[10px] px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-700/30 font-medium">
+        <i class="mdi mdi-briefcase-clock mr-0.5"></i>Lembur {{ attendance.overtimeMinutes }}m
       </span>
     </div>
   </div>

@@ -23,8 +23,8 @@ const formatDateHeader = (): string => {
 
 const statusConfig = computed(() => {
   const att = props.attendance;
-  if (!att?.checkinTime) return { label: 'Belum Presensi', color: 'text-slate-500 dark:text-slate-400', bg: 'bg-white dark:bg-slate-900', dot: 'bg-slate-400' };
-  if (att.checkinTime && !att.checkoutTime) return { label: 'Sedang Bekerja', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50/70 dark:bg-emerald-950/30', dot: 'bg-emerald-500 animate-pulse' };
+  if (!att?.checkinTime && !att?.checkoutTime) return { label: 'Belum Presensi', color: 'text-slate-500 dark:text-slate-400', bg: 'bg-white dark:bg-slate-900', dot: 'bg-slate-400' };
+  if (att?.checkinTime && !att?.checkoutTime) return { label: 'Sedang Bekerja', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50/70 dark:bg-emerald-950/30', dot: 'bg-emerald-500 animate-pulse' };
   return { label: 'Selesai', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50/70 dark:bg-blue-950/30', dot: 'bg-blue-500' };
 });
 
@@ -39,7 +39,7 @@ const statusLabelMap: Record<string, string> = {
 </script>
 
 <template>
-  <div class="mx-4 mt-4">
+  <div class="mt-2">
     <!-- Date banner -->
     <p class="text-center text-xs text-slate-500 dark:text-slate-400 mb-3 capitalize font-medium">{{ formatDateHeader() }}</p>
 

@@ -78,23 +78,23 @@ const effectiveTimeWindowMessage = computed(() => {
 const buttonConfig = computed(() => {
   if (effectiveCanCheckin.value) {
     return {
-      label: props.hasCheckedIn ? 'Presensi Masuk Lagi' : 'Check In (Masuk)',
+      label: props.hasCheckedIn ? 'Presensi Masuk' : 'Presensi Masuk',
       subLabel: props.hasCheckedIn
         ? 'Jam masuk pertama kali (terawal) tetap dipertahankan sebagai acuan kehadiran'
         : 'Presensi masuk terawal yang akan diakui',
       icon: 'mdi-login',
-      gradient: props.hasCheckedIn ? 'from-teal-600 to-emerald-700' : 'from-emerald-500 to-teal-600',
-      shadow: 'shadow-emerald-500/20',
+      gradient: props.hasCheckedIn ? 'from-teal-600 to-emerald-700' : 'from-blue-500 to-indigo-600',
+      shadow: 'shadow-blue-500/25',
       action: () => emit('submitCheckin'),
     };
   }
   if (effectiveCanCheckout.value) {
     return {
-      label: props.hasCheckedOut ? 'Perbarui Check Out (Pulang)' : 'Check Out (Pulang)',
+      label: props.hasCheckedOut ? 'Perbarui Presensi Pulang' : 'Presensi Pulang',
       subLabel: props.hasCheckedOut ? 'Jam pulang Anda akan diperbarui ke waktu yang terbaru' : '',
       icon: 'mdi-logout',
       gradient: props.hasCheckedOut ? 'from-amber-500 to-orange-600' : 'from-blue-500 to-indigo-600',
-      shadow: props.hasCheckedOut ? 'shadow-amber-500/20' : 'shadow-blue-500/20',
+      shadow: props.hasCheckedOut ? 'shadow-amber-500/20' : 'shadow-blue-500/25',
       action: () => emit('submitCheckout'),
     };
   }
@@ -105,7 +105,7 @@ const canSubmit = computed(() => (props.hasPhoto || !props.requirePhoto) && prop
 </script>
 
 <template>
-  <div class="mx-4 mt-4 space-y-3">
+  <div class="space-y-3">
     <!-- Time window alert banner (if attendance is currently disabled due to shift window) -->
     <div
       v-if="effectiveTimeWindowMessage && !effectiveCanCheckin && !effectiveCanCheckout && !loading"
@@ -132,23 +132,20 @@ const canSubmit = computed(() => (props.hasPhoto || !props.requirePhoto) && prop
 
     <template v-else-if="buttonConfig">
       <!-- Photo preview / camera trigger -->
-      <div class="space-y-2">
-        <p class="text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-          <i class="mdi mdi-camera"></i> Foto Selfie
-        </p>
+      <div v-if="requirePhoto" class="space-y-2">
         <button
           type="button"
           @click="$emit('openCamera')"
-          class="w-full rounded-xl border-2 border-dashed transition-all duration-200 overflow-hidden bg-white dark:bg-slate-900"
-          :class="hasPhoto ? 'border-emerald-500' : 'border-slate-300 dark:border-slate-700 hover:border-blue-500/60'"
+          class="w-full rounded-2xl border-2 border-dashed transition-all duration-200 overflow-hidden bg-sky-50/40 dark:bg-slate-900"
+          :class="hasPhoto ? 'border-emerald-500' : 'border-sky-200 dark:border-sky-900/60 hover:border-sky-400'"
         >
           <!-- Placeholder when no photo -->
           <div
             v-if="!hasPhoto"
-            class="flex flex-col items-center justify-center gap-2 py-8 text-slate-400 dark:text-slate-500 hover:text-blue-500 transition-colors"
+            class="flex flex-col items-center justify-center gap-2 py-8 text-sky-500 dark:text-sky-400 hover:text-sky-600 transition-colors"
           >
-            <i class="mdi mdi-camera-plus text-3xl"></i>
-            <span class="text-xs font-medium">Ketuk untuk mengambil foto</span>
+            <i class="mdi mdi-camera-plus-outline text-3xl"></i>
+            <span class="text-xs font-semibold">Ambil Foto Selfie</span>
           </div>
 
           <!-- Preview slot -->
@@ -157,10 +154,10 @@ const canSubmit = computed(() => (props.hasPhoto || !props.requirePhoto) && prop
       </div>
 
       <!-- Validation hints -->
-      <div class="space-y-1.5">
-        <div class="flex items-center gap-2 text-xs" :class="(hasPhoto || !requirePhoto) ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'">
-          <i :class="(hasPhoto || !requirePhoto) ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'"></i>
-          <span>{{ hasPhoto ? 'Foto tersedia' : (requirePhoto ? 'Foto selfie wajib diambil' : 'Foto selfie opsional') }}</span>
+      <div class="space-y-1.5 pt-1">
+        <div v-if="requirePhoto" class="flex items-center gap-2 text-xs" :class="hasPhoto ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'">
+          <i :class="hasPhoto ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'"></i>
+          <span>{{ hasPhoto ? 'Foto selfie tersedia' : 'Foto selfie wajib diambil' }}</span>
         </div>
         <div class="flex items-center gap-2 text-xs" :class="hasLocation ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'">
           <i :class="hasLocation ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'"></i>
@@ -178,7 +175,7 @@ const canSubmit = computed(() => (props.hasPhoto || !props.requirePhoto) && prop
         :disabled="!canSubmit || submitting"
         @click="buttonConfig.action()"
         :class="[
-          'w-full py-4 rounded-2xl font-bold text-base text-white transition-all duration-300',
+          'w-full py-4 rounded-2xl font-extrabold text-base text-white transition-all duration-300',
           'flex items-center justify-center gap-3',
           'bg-gradient-to-r shadow-lg',
           buttonConfig.gradient,
@@ -199,9 +196,9 @@ const canSubmit = computed(() => (props.hasPhoto || !props.requirePhoto) && prop
       </button>
 
       <!-- SubLabel hint -->
-      <p v-if="buttonConfig.subLabel" class="text-[11px] text-center text-slate-500 dark:text-slate-400 mt-1">
+      <!-- <p v-if="buttonConfig.subLabel" class="text-[11px] text-center text-slate-500 dark:text-slate-400 mt-1">
         <i class="mdi mdi-information-outline mr-1"></i>{{ buttonConfig.subLabel }}
-      </p>
+      </p> -->
     </template>
   </div>
 </template>

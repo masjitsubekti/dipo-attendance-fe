@@ -16,9 +16,10 @@ interface Props {
   userLat: number | null;
   userLon: number | null;
   loading?: boolean;
+  standalone?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), { loading: false });
+const props = withDefaults(defineProps<Props>(), { loading: false, standalone: false });
 
 // ==================== Distance calculation ====================
 const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -95,10 +96,18 @@ const onMapReady = ({ map, L }: { map: any; L: any }) => {
 
 const updateUserMarker = () => {
   if (!mapInstance || !LInstance) return;
-  if (props.userLat === null || props.userLon === null) return;
+  if (props.userLat === null || props.userLon === null) {
+    if (userMarker) {
+      userMarker.remove();
+      userMarker = null;
+    }
+    return;
+  }
 
-  const lat = props.userLat;
-  const lon = props.userLon;
+  const lat = Number(props.userLat);
+  const lon = Number(props.userLon);
+  if (isNaN(lat) || isNaN(lon)) return;
+
   const inside = isWithinRadius.value ?? true;
 
   const mainColor = inside ? '#10b981' : '#ef4444'; // green if inside, red if outside
@@ -123,15 +132,19 @@ const updateUserMarker = () => {
     className: '',
   });
 
+  const dist = estimatedDistance.value !== null ? `${estimatedDistance.value}m` : '';
   const tooltipText = inside
-    ? `📍 Posisi Anda (${estimatedDistance.value ?? 0}m - Dalam Radius)`
-    : `⚠️ Posisi Anda (${estimatedDistance.value ?? 0}m - Di luar Radius)`;
+    ? `📍 Posisi Anda (${dist} - Dalam Radius)`
+    : `⚠️ Posisi Anda (${dist} - Di luar Radius)`;
 
-  if (userMarker) {
+  if (userMarker && mapInstance.hasLayer(userMarker)) {
     userMarker.setLatLng([lat, lon]);
     userMarker.setIcon(userIcon);
     userMarker.setTooltipContent(tooltipText);
   } else {
+    if (userMarker) {
+      try { userMarker.remove(); } catch (e) {}
+    }
     userMarker = LInstance.marker([lat, lon], { icon: userIcon })
       .addTo(mapInstance)
       .bindTooltip(tooltipText, { direction: 'top' });
@@ -140,6 +153,7 @@ const updateUserMarker = () => {
 
 const fitMapBounds = () => {
   if (!mapInstance || !LInstance) return;
+  mapInstance.invalidateSize();
   const points: [number, number][] = [[props.institutionLat, props.institutionLon]];
   if (props.userLat !== null && props.userLon !== null) {
     points.push([props.userLat, props.userLon]);
@@ -149,7 +163,17 @@ const fitMapBounds = () => {
     mapInstance.setView(points[0], 17);
   } else {
     const bounds = LInstance.latLngBounds(points);
-    mapInstance.fitBounds(bounds, { padding: [50, 50] });
+    mapInstance.fitBounds(bounds, { padding: [30, 30] });
+  }
+};
+
+const focusUserLocation = () => {
+  if (!mapInstance) return;
+  mapInstance.invalidateSize();
+  if (props.userLat !== null && props.userLon !== null) {
+    mapInstance.setView([props.userLat, props.userLon], 17);
+  } else {
+    mapInstance.setView([props.institutionLat, props.institutionLon], 17);
   }
 };
 
@@ -172,6 +196,11 @@ watch([() => props.institutionLat, () => props.institutionLon, () => props.radiu
   updateUserMarker();
 });
 
+defineExpose({
+  fitMapBounds,
+  focusUserLocation,
+});
+
 onUnmounted(() => {
   userMarker?.remove();
   institutionMarker?.remove();
@@ -182,11 +211,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="mx-4 mt-4">
+  <div :class="standalone ? 'mx-4 mt-4' : 'w-full h-full'">
     <!-- Map container -->
-    <div class="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+    <div :class="standalone ? 'rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm' : 'w-full h-full'">
       <!-- Map -->
-      <div class="relative h-56">
+      <div :class="standalone ? 'relative h-56' : 'relative w-full h-full'">
         <div v-if="loading" class="absolute inset-0 bg-slate-100 dark:bg-slate-800 animate-pulse flex items-center justify-center">
           <i class="mdi mdi-map-outline text-4xl text-slate-400 dark:text-slate-600"></i>
         </div>
@@ -201,18 +230,6 @@ onUnmounted(() => {
           @ready="onMapReady"
           class="w-full h-full"
         />
-
-        <!-- Recenter button -->
-        <button
-          v-if="userLat !== null"
-          type="button"
-          @click="fitMapBounds"
-          class="absolute bottom-3 right-3 z-[400] bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm text-slate-700 dark:text-slate-200 text-xs font-semibold px-2.5 py-1.5 rounded-lg shadow-md border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 flex items-center gap-1.5 transition-all active:scale-95"
-          title="Fokuskan Lokasi"
-        >
-          <i class="mdi mdi-crosshairs-gps text-blue-500"></i>
-          <span>Fokus Lokasi</span>
-        </button>
       </div>
 
       <!-- Info card -->

@@ -23,7 +23,7 @@ export const useFormat = () => {
         if (!date) return '-'
 
         try {
-            const m = utc ? moment.utc(date, [moment.ISO_8601, 'HH:mm', 'HH:mm:ss']) : moment(date)
+            const m = (utc ? moment.utc(date, [moment.ISO_8601, 'HH:mm', 'HH:mm:ss']) : moment(date)).locale('id')
             if (!m.isValid()) return '-'
             return m.format(format)
         } catch {
@@ -46,7 +46,7 @@ export const useFormat = () => {
         if (!date) return '-'
 
         try {
-            const m = utc ? moment.utc(date) : moment(date)
+            const m = (utc ? moment.utc(date) : moment(date)).locale('id')
 
             if (!m.isValid()) return '-'
 

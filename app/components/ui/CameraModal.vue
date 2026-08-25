@@ -6,11 +6,13 @@ import { useSwal } from '~/composables/useSwal';
 interface Props {
   modelValue: boolean;
   title?: string;
+  defaultFacingMode?: 'user' | 'environment';
 }
 
 const props = withDefaults(defineProps<Props>(), {
   modelValue: false,
   title: '',
+  defaultFacingMode: 'environment',
 });
 
 const emit = defineEmits<{
@@ -25,12 +27,8 @@ const swal = useSwal();
 const videoRef = ref<HTMLVideoElement | null>(null);
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const localStream = ref<MediaStream | null>(null);
-const isMobileDevice = () => {
-  if (typeof navigator === 'undefined') return false;
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-};
 
-const facingMode = ref<'user' | 'environment'>(isMobileDevice() ? 'environment' : 'user');
+const facingMode = ref<'user' | 'environment'>(props.defaultFacingMode);
 const hasMultipleCameras = ref(false);
 const isMirrored = ref(facingMode.value === 'user');
 
@@ -118,6 +116,7 @@ const capturePhoto = () => {
 // Watch for modelValue visibility changes
 watch(() => props.modelValue, async (val) => {
   if (val) {
+    facingMode.value = props.defaultFacingMode;
     await nextTick();
     startCamera();
   } else {

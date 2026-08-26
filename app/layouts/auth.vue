@@ -96,7 +96,7 @@ onUnmounted(() => {
       
       <!-- Left Content -->
       <div class="flex flex-col max-w-lg lg:w-1/2">
-        <UiAppLogo class="mb-6 md:mb-8 lg:mb-12" />
+        <UiAppLogo :logoSize="72" class="mb-6 md:mb-8 lg:mb-12" />
 
         <!-- Title & Description Slider -->
         <div class="hidden lg:block relative h-[250px]" v-if="slides.length > 0">

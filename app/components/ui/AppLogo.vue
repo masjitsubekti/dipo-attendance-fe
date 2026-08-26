@@ -1,19 +1,21 @@
 <template>
   <div :class="containerClass">
-    <img v-if="image" :src="image" alt="App Logo" :style="logoStyle" class="object-contain max-w-full" onerror="this.style.display='none'" />
-    <template v-else>
-      <div class="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center shadow-md shadow-primary-500/30 text-white shrink-0">
-        <UiIcon name="mdi-school" size="24" />
-      </div>
-      <div v-if="!collapsed" class="flex flex-col min-w-0">
-        <span class="text-[14px] font-bold text-slate-900 dark:text-white tracking-wider leading-tight">SISTEM INFORMASI</span>
-        <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400 tracking-wider leading-none mt-0.5">MANAJEMEN SEKOLAH</span>
-      </div>
-    </template>
+    <img
+      :src="image || '/images/app-logo.png'"
+      alt="App Logo"
+      :style="logoStyle"
+      class="object-contain max-w-full shrink-0"
+    />
+    <div v-if="!collapsed" class="flex flex-col min-w-0">
+      <span :class="['font-bold text-slate-900 dark:text-white', titleTextClass]">SISTEM INFORMASI</span>
+      <span :class="['font-medium text-slate-900 dark:text-slate-400', subtitleTextClass]">PRESENSI SEKOLAH</span>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+
 interface Props {
   position?: 'default' | 'absolute-top-left'
   collapsed?: boolean
@@ -26,7 +28,7 @@ const props = withDefaults(defineProps<Props>(), {
   position: 'default',
   collapsed: false,
   mode: 'auto',
-  image: '',
+  image: '/images/app-logo.png',
   logoSize: 40
 })
 
@@ -37,11 +39,25 @@ const textClass = computed(() => {
 })
 
 const logoStyle = computed(() => {
-  const size = props.logoSize
+  const size = props.logoSize || 40
   if (!isNaN(Number(size))) {
-    return { height: `${size}px` }
+    return { height: `${size}px`, width: 'auto' }
   }
   return { height: size as string }
+})
+
+const titleTextClass = computed(() => {
+  const size = Number(props.logoSize) || 40
+  if (size >= 64) return 'text-[20px] tracking-wider leading-tight'
+  if (size >= 48) return 'text-[16px] tracking-wider leading-tight'
+  return 'text-[14px] tracking-wider leading-tight'
+})
+
+const subtitleTextClass = computed(() => {
+  const size = Number(props.logoSize) || 40
+  if (size >= 64) return 'text-[14px] tracking-wider leading-none mt-1'
+  if (size >= 48) return 'text-[12px] tracking-wider leading-none mt-0.5'
+  return 'text-[11px] tracking-wider leading-none mt-0.5'
 })
 
 const containerClass = computed(() => {

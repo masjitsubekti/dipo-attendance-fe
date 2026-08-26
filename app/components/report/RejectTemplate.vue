@@ -2,7 +2,7 @@
   <div class="print-wrapper">
     <div class="header-container">
       <div>
-        <img class="logo-img" src="/images/logo-mkn2.png" />
+        <img class="logo-img" src="/images/app-logo.png" />
       </div>
       <div class="doc-title">
         FORMULIR PENOLAKAN BARANG

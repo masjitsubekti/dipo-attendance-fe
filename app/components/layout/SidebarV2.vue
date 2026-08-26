@@ -142,7 +142,7 @@ const handleLogout = async () => {
       :class="{ 'justify-center px-4': isEffectivelyCollapsed }"
     >
       <img 
-        src="/images/logo-mkn.webp" 
+        src="/images/app-logo.png" 
         alt="MKN Logo" 
         :class="isEffectivelyCollapsed ? 'w-12 h-12' : 'w-17 h-17'" 
         class="object-contain bg-transparent rounded-full"

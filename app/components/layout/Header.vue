@@ -40,7 +40,7 @@ onMounted(() => {
       <!-- Left section -->
       <div class="flex items-center gap-4">
         <!-- Logo (only for horizontal layout on desktop) -->
-        <UiAppLogo v-if="sidebarLayout === 'horizontal'" image="/images/logo-mkn2.png" class="hidden lg:flex mr-4" />
+        <UiAppLogo v-if="sidebarLayout === 'horizontal'" image="/images/app-logo.png" class="hidden lg:flex mr-4" />
 
         <!-- Mobile menu button (for both layouts on mobile) -->
         <button

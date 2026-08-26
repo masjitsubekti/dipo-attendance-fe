@@ -140,7 +140,7 @@ const handleLogout = async () => {
   
     <!-- Logo -->
     <div 
-      class="flex items-center gap-3 px-4 transition-all duration-300 my-4 shrink-0"
+      class="flex items-center gap-3 px-4 transition-all duration-300 my-4 mb-3 shrink-0"
       :class="{ 'justify-center px-2': isEffectivelyCollapsed }"
     >
       <UiAppLogo :collapsed="isEffectivelyCollapsed" />

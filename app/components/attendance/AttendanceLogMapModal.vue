@@ -39,14 +39,9 @@
         </div>
 
         <div v-if="item" class="hidden sm:flex items-center gap-2">
-          <span
-            :class="[
-              'inline-flex items-center px-3 py-1 rounded-full text-xs font-bold shadow-xs border',
-              getStatusBadgeClass(item.status, item.checkoutTime)
-            ]"
-          >
+          <UiBadge :variant="getStatusBadgeVariant(item.status, item.checkoutTime)">
             {{ parseStatus(item.status, item.checkoutTime) }}
-          </span>
+          </UiBadge>
         </div>
       </div>
 
@@ -187,22 +182,18 @@
                 <tr>
                   <td class="py-2.5 px-4 font-semibold text-slate-700 dark:text-slate-300 bg-slate-50/80 dark:bg-slate-800/80">Jenis Kehadiran : </td>
                   <td class="py-2.5 px-4 font-semibold text-blue-600 dark:text-blue-400">{{ parseAttendanceType(item.attendanceType) }}</td>
-                  <td class="py-2.5 px-4 font-semibold text-slate-700 dark:text-slate-300 bg-slate-50/80 dark:bg-slate-800/80">Lembur : </td>
-                  <td colspan="3" class="py-2.5 px-4 font-semibold text-emerald-600 dark:text-emerald-400">{{ formatMinutes(item.overtimeMinutes) }}</td>
-                </tr>
-                <tr>
-                  <td class="py-2.5 px-4 font-semibold text-slate-700 dark:text-slate-300 bg-slate-50/80 dark:bg-slate-800/80">Terlambat : </td>
-                  <td class="py-2.5 px-4 font-semibold text-rose-600 dark:text-rose-400">{{ formatMinutes(item.lateMinutes) }}</td>
                   <td class="py-2.5 px-4 font-semibold text-slate-700 dark:text-slate-300 bg-slate-50/80 dark:bg-slate-800/80">Pulang Cepat : </td>
                   <td class="py-2.5 px-4 font-semibold text-amber-600 dark:text-amber-400">{{ formatMinutes(item.earlyLeaveMinutes) }}</td>
                 </tr>
                 <tr>
                   <td class="py-2.5 px-4 font-semibold text-slate-700 dark:text-slate-300 bg-slate-50/80 dark:bg-slate-800/80">Status Presensi : </td>
                   <td class="py-2.5 px-4">
-                    <span :class="['inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border', getStatusBadgeClass(item.status, item.checkoutTime)]">
+                    <UiBadge :variant="getStatusBadgeVariant(item.status, item.checkoutTime)">
                       {{ parseStatus(item.status, item.checkoutTime) }}
-                    </span>
+                    </UiBadge>
                   </td>
+                  <td class="py-2.5 px-4 font-semibold text-slate-700 dark:text-slate-300 bg-slate-50/80 dark:bg-slate-800/80">Terlambat : </td>
+                  <td class="py-2.5 px-4 font-semibold text-rose-600 dark:text-rose-400">{{ formatMinutes(item.lateMinutes) }}</td>
                 </tr>
               </tbody>
             </table>
@@ -296,17 +287,17 @@ const parseStatus = (status: string | null, checkoutTime?: any) => {
   return status;
 };
 
-const getStatusBadgeClass = (status: string | null, checkoutTime?: any) => {
-  if (!status && checkoutTime) return "bg-emerald-600 text-white border-emerald-700";
-  if (!status) return "bg-slate-500 text-white border-slate-600";
+const getStatusBadgeVariant = (status: string | null, checkoutTime?: any): "success" | "warning" | "danger" | "info" | "default" | "primary" => {
+  if (!status && checkoutTime) return "success";
+  if (!status) return "default";
   const s = status.toLowerCase();
-  if (s === "present") return "bg-emerald-600 text-white border-emerald-700";
-  if (s === "late") return "bg-amber-500 text-white border-amber-600";
-  if (s === "absent") return "bg-rose-600 text-white border-rose-700";
-  if (s === "leave") return "bg-purple-600 text-white border-purple-700";
-  if (s === "holiday") return "bg-slate-500 text-white border-slate-600";
-  if (s === "incomplete") return "bg-orange-500 text-white border-orange-600";
-  return "bg-slate-600 text-white border-slate-700";
+  if (s === "present") return "success";
+  if (s === "late") return "warning";
+  if (s === "absent") return "danger";
+  if (s === "leave") return "primary";
+  if (s === "holiday") return "default";
+  if (s === "incomplete") return "warning";
+  return "default";
 };
 
 const formatMinutes = (val: number | null | undefined) => {

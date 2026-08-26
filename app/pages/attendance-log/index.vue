@@ -70,14 +70,9 @@
 
       <!-- Status Column -->
       <template v-slot:[`item.status`]="{ item }">
-        <span
-          :class="[
-            'inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold shadow-xs border',
-            getStatusBadgeClass(item.status, item.checkoutTime)
-          ]"
-        >
+        <UiBadge :variant="getStatusBadgeVariant(item.status, item.checkoutTime)">
           {{ parseStatus(item.status, item.checkoutTime) }}
-        </span>
+        </UiBadge>
       </template>
     </TableListModalFilter>
 
@@ -156,7 +151,6 @@ const headers = computed(() => [
   { key: "attendanceType", title: "Jenis Kehadiran", sortable: true },
   { key: "lateMinutes", title: "Terlambat", sortable: true, align: "center" },
   { key: "earlyLeaveMinutes", title: "Pulang Cepat", sortable: true, align: "center" },
-  { key: "overtimeMinutes", title: "Lembur", sortable: true, align: "center" },
   { key: "status", title: "Status", sortable: true, align: "center" },
   { key: "actions", title: "Aksi", align: "center", width: "6%" },
 ]);
@@ -259,7 +253,7 @@ const actions = computed(() => [
 
 const formatDateOnly = (val: any) => {
   if (!val) return "—";
-  return formatDate(val, "DD-MM-YYYY", true);
+  return formatDate(val, "DD/MM/YYYY", true);
 };
 
 const formatTimeOnly = (val: any) => {
@@ -295,17 +289,17 @@ const parseStatus = (status: string | null, checkoutTime?: any) => {
   return status;
 };
 
-const getStatusBadgeClass = (status: string | null, checkoutTime?: any) => {
-  if (!status && checkoutTime) return "bg-emerald-600 text-white border-emerald-700";
-  if (!status) return "bg-slate-500 text-white border-slate-600";
+const getStatusBadgeVariant = (status: string | null, checkoutTime?: any): "success" | "warning" | "danger" | "info" | "default" | "primary" => {
+  if (!status && checkoutTime) return "success";
+  if (!status) return "default";
   const s = status.toLowerCase();
-  if (s === "present") return "bg-emerald-600 text-white border-emerald-700";
-  if (s === "late") return "bg-amber-500 text-white border-amber-600";
-  if (s === "absent") return "bg-rose-600 text-white border-rose-700";
-  if (s === "leave") return "bg-purple-600 text-white border-purple-700";
-  if (s === "holiday") return "bg-slate-500 text-white border-slate-600";
-  if (s === "incomplete") return "bg-orange-500 text-white border-orange-600";
-  return "bg-slate-600 text-white border-slate-700";
+  if (s === "present") return "success";
+  if (s === "late") return "warning";
+  if (s === "absent") return "danger";
+  if (s === "leave") return "primary";
+  if (s === "holiday") return "default";
+  if (s === "incomplete") return "warning";
+  return "default";
 };
 
 const loadOptions = async () => {

@@ -305,7 +305,7 @@ export function useExcelExport() {
                 // If app config logo loading failed or was not specified, load the default logo
                 if (!companyImage) {
                     try {
-                        const defaultLogoUrl = `${baseUrl}/images/logo-mkn.webp`;
+                        const defaultLogoUrl = `${baseUrl}/images/app-logo.png`;
                         companyImage = await getImageInfo(defaultLogoUrl);
                     } catch (e) {
                         console.warn("Failed to load default company logo", e);

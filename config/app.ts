@@ -1,16 +1,25 @@
 export const appConfig = {
   head: {
-    title: "RA Management System",
-    titleTemplate: '%s | RA Management System',
+    title: "Presensi Sekolah",
+    titleTemplate: "%s | Presensi Sekolah",
     meta: [
       { charset: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { name: "description", content: "RA Management System" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" },
+      { name: "description", content: "Aplikasi Presensi Sekolah" },
+      { name: "theme-color", content: "#2563eb" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "Presensi" },
+      { name: "application-name", content: "Presensi" },
     ],
     link: [
+      { rel: "icon", type: "image/png", href: "/favicon.png" },
       { rel: "icon", type: "image/x-icon", href: "/favicon.ico" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      { rel: "manifest", href: "/manifest.json" },
     ],
-    // Inline script to prevent flash of light theme
+    // Inline script to prevent flash of light theme and register PWA Service Worker
     script: [
       {
         innerHTML: `
@@ -32,6 +41,12 @@ export const appConfig = {
                 document.documentElement.classList.remove('dark');
               }
             } catch (e) {}
+
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js').catch(function() {});
+              });
+            }
           })();
         `,
         type: 'text/javascript',

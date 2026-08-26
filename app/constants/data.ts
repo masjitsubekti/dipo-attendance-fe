@@ -18,3 +18,10 @@ export const INTERNATIONAL_FLIGHT_TYPES = ['BONDED', 'EXP-UMUM'];
 export const BOOKING_STATUS = ['DRAFT', 'PROCEED', 'CANCELLED', 'OUTSTANDING', 'PAID'];
 export const JOB_TYPE = ['AVSEC', 'DRIVER'];
 export const INVOICE_STATUS = ['PAID', 'UNPAID', 'PARTIAL', 'OVERDUE', 'CANCELLED'];
+
+export const ATTENDANCE_TYPE_CATEGORIES = [
+  { id: 'attendance', name: 'Kehadiran' },
+  { id: 'leave', name: 'Izin' },
+  { id: 'time_off', name: 'Cuti' },
+  { id: 'duty', name: 'Dinas Luar' },
+] as const;

@@ -144,9 +144,7 @@
                 v-model="editedItem.radiusMeter"
                 label="Radius (meter)"
                 placeholder="100"
-                required
                 type="number"
-                :rules="[(v) => !!v || 'Wajib diisi', (v) => v > 0 || 'Harus lebih dari 0']"
                 @update:modelValue="updateRadiusCircle"
               />
             </UiCol>

@@ -72,6 +72,12 @@ export function useExcelExport() {
         });
     }
 
+    function sanitizeSheetName(name?: string): string {
+        if (!name) return 'Data';
+        const sanitized = name.replace(/[\/*?:\[\]]/g, ' ').replace(/\s+/g, ' ').trim();
+        return (sanitized.slice(0, 31) || 'Data').trim();
+    }
+
     async function exportToExcel(options: ExportOptions) {
         let { data, columns, filename, sheetName = 'Data', headerOptions, summaryData, headerHeight, mergeHeaders } = options;
         if (data.length === 0) {
@@ -85,7 +91,7 @@ export function useExcelExport() {
             // Dynamic import of exceljs for client-side only
             const ExcelJS = (await import('exceljs')).default;
             const workbook = new ExcelJS.Workbook();
-            const worksheet = workbook.addWorksheet(sheetName);
+            const worksheet = workbook.addWorksheet(sanitizeSheetName(sheetName));
 
             // Add 'No' column at the beginning
             const allColumns = [

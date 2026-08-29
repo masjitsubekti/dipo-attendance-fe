@@ -6,9 +6,9 @@
     </div>
 
     <!-- Filter Card (Hide when printing) -->
-    <div class="bg-white dark:bg-slate-800 rounded-sm overflow-hidden card print:hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-sm card print:hidden">
       <!-- Header Bar -->
-      <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-1 bg-primary-500">
+      <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-1 bg-primary-500 rounded-t-sm">
         <h2 class="text-lg font-semibold text-white">Laporan Rekap Presensi</h2>
         <div class="flex items-center gap-1">
           <UiIconButton
@@ -104,14 +104,17 @@
     </div>
 
     <!-- Empty State Prompt -->
-    <UiCard v-if="!reportData && !isLoading" class="text-center py-12">
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+    <!-- <UiCard v-if="!reportData && !isLoading" class="text-center py-12">
+      <div class="w-16 h-16 rounded-full bg-primary-50 dark:bg-slate-700/60 flex items-center justify-center mx-auto mb-4 text-primary-500 dark:text-primary-400">
+        <UiIcon name="mdi-file-document" size="xl" />
+      </div>
+      <h3 class="text-lg font-semibold text-slate-800 dark:text-white">
         Rekap Presensi Pegawai
       </h3>
-      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+      <p class="mt-1 text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
         Silakan pilih Institusi, Pegawai, Bulan, dan Tahun pada form filter di atas untuk menampilkan laporan rekapitulasi kehadiran.
       </p>
-    </UiCard>
+    </UiCard> -->
 
     <!-- Loading Spinner State -->
     <UiCard v-if="isLoading" class="print:hidden text-center py-16" variant="outlined">
@@ -129,45 +132,45 @@
       class="bg-white text-gray-900 print:shadow-none print:p-0 print:border-none print:m-0 print:w-full"
     >
       <!-- Report Header -->
-      <div class="text-center border-b-2 border-gray-900 pb-4 mb-6">
-        <h1 class="text-xl md:text-2xl font-extrabold uppercase tracking-wide text-gray-900">
-          {{ reportData.company.name }}
+      <div class="text-center border-b border-slate-200 dark:border-slate-700 pb-3 mb-4">
+        <h1 class="text-base md:text-lg font-bold uppercase tracking-wide text-slate-800 dark:text-slate-100">
+          {{ reportData.employee.institution }}
         </h1>
-        <h2 class="text-lg md:text-xl font-bold uppercase mt-1 text-gray-900">
+        <h2 class="text-sm md:text-base font-semibold uppercase mt-0.5 text-slate-700 dark:text-slate-300">
           {{ reportData.company.title }}
         </h2>
-        <h3 class="text-md md:text-lg font-semibold uppercase mt-0.5 text-gray-800">
+        <h3 class="text-xs md:text-sm font-medium uppercase mt-0.5 text-slate-500 dark:text-slate-400">
           {{ reportData.company.periodText }}
         </h3>
       </div>
 
       <!-- Employee Info Grid -->
-      <UiRow :gap="4" :mb="4" class="text-sm font-medium">
+      <UiRow :gap="3" :mb="3" class="text-xs">
         <UiCol cols="12" md="6">
-          <div class="space-y-2">
+          <div class="space-y-1">
             <div class="flex">
-              <span class="w-28 font-bold text-gray-800">Nama</span>
-              <span class="w-4">:</span>
-              <span class="flex-1 font-semibold text-gray-900 uppercase">{{ reportData.employee.name }}</span>
+              <span class="w-24 font-semibold text-slate-600 dark:text-slate-400">Nama</span>
+              <span class="w-3 text-slate-400">:</span>
+              <span class="flex-1 font-bold text-slate-800 dark:text-slate-200 uppercase">{{ reportData.employee.name }}</span>
             </div>
             <div class="flex">
-              <span class="w-28 font-bold text-gray-800">NIP</span>
-              <span class="w-4">:</span>
-              <span class="flex-1 font-semibold text-gray-900">{{ reportData.employee.nip }}</span>
+              <span class="w-24 font-semibold text-slate-600 dark:text-slate-400">NIP</span>
+              <span class="w-3 text-slate-400">:</span>
+              <span class="flex-1 font-medium text-slate-800 dark:text-slate-200">{{ reportData.employee.nip }}</span>
             </div>
           </div>
         </UiCol>
         <UiCol cols="12" md="6">
-          <div class="space-y-2">
+          <div class="space-y-1">
             <div class="flex">
-              <span class="w-28 font-bold text-gray-800">Departement</span>
-              <span class="w-4">:</span>
-              <span class="flex-1 font-semibold text-gray-900 uppercase">{{ reportData.employee.department }}</span>
+              <span class="w-24 font-semibold text-slate-600 dark:text-slate-400">Departement</span>
+              <span class="w-3 text-slate-400">:</span>
+              <span class="flex-1 font-bold text-slate-800 dark:text-slate-200 uppercase">{{ reportData.employee.department }}</span>
             </div>
             <div class="flex">
-              <span class="w-28 font-bold text-gray-800">Unit Kerja</span>
-              <span class="w-4">:</span>
-              <span class="flex-1 font-semibold text-gray-900 uppercase">{{ reportData.employee.unitKerja }}</span>
+              <span class="w-24 font-semibold text-slate-600 dark:text-slate-400">Jabatan</span>
+              <span class="w-3 text-slate-400">:</span>
+              <span class="flex-1 font-bold text-slate-800 dark:text-slate-200 uppercase">{{ reportData.employee.position }}</span>
             </div>
           </div>
         </UiCol>
@@ -175,15 +178,29 @@
 
       <!-- Daily Attendance Table Grid -->
       <div class="overflow-x-auto my-4 rounded-lg border border-slate-200 dark:border-slate-700">
-        <table class="w-full border-collapse text-xs text-center">
+        <table class="w-full table-fixed border-collapse text-xs text-center">
+          <colgroup>
+            <col class="w-24" />
+            <col class="w-20" />
+            <col class="w-16" />
+            <col class="w-12" />
+            <col class="w-12" />
+            <col class="w-16" />
+            <col class="w-12" />
+            <col class="w-12" />
+            <col class="w-16" />
+            <col class="w-16" />
+            <col class="w-24" />
+            <col class="w-48" />
+          </colgroup>
           <thead>
             <tr class="bg-slate-50 dark:bg-slate-800/80 font-semibold text-slate-800 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700">
-              <th rowspan="3" class="border-r border-b border-slate-200 dark:border-slate-700 px-3 py-2.5 w-20 align-middle">TANGGAL</th>
-              <th rowspan="3" class="border-r border-b border-slate-200 dark:border-slate-700 px-3 py-2.5 w-20 align-middle">HARI</th>
+              <th rowspan="3" class="border-r border-b border-slate-200 dark:border-slate-700 px-2 py-2.5 align-middle">TANGGAL</th>
+              <th rowspan="3" class="border-r border-b border-slate-200 dark:border-slate-700 px-2 py-2.5 align-middle">HARI</th>
               <th colspan="6" class="border-r border-b border-slate-200 dark:border-slate-700 px-2 py-2 align-middle">REGULAR</th>
               <th colspan="2" class="border-r border-b border-slate-200 dark:border-slate-700 px-2 py-2 align-middle">NON REGULAR</th>
-              <th rowspan="3" class="border-r border-b border-slate-200 dark:border-slate-700 px-3 py-2.5 w-24 align-middle">KETERANGAN</th>
-              <th rowspan="3" class="border-b border-slate-200 dark:border-slate-700 px-3 py-2.5 min-w-[200px] align-middle">KETERANGAN REGULAR / NON</th>
+              <th rowspan="3" class="border-r border-b border-slate-200 dark:border-slate-700 px-2 py-2.5 align-middle">KETERANGAN</th>
+              <th rowspan="3" class="border-b border-slate-200 dark:border-slate-700 px-2 py-2.5 align-middle">KETERANGAN REGULAR / NON</th>
             </tr>
             <tr class="bg-slate-50 dark:bg-slate-800/80 font-semibold text-slate-800 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700">
               <th rowspan="2" class="border-r border-b border-slate-200 dark:border-slate-700 px-2 py-2 w-16 align-middle">MASUK</th>
@@ -232,7 +249,7 @@
                 {{ row.keterangan }}
               </td>
               <!-- Keterangan Detail -->
-              <td class="px-3 py-2.5 text-left font-medium uppercase">{{ row.keteranganDetail }}</td>
+              <td class="px-2 py-2.5 text-left font-medium uppercase truncate" :title="row.keteranganDetail">{{ row.keteranganDetail }}</td>
             </tr>
           </tbody>
 
@@ -424,7 +441,7 @@ async function loadInstitutions() {
     const res: any = await institutionSvc.retrieveAll();
     const items = res.data || [];
     institutionOptions.value = items.map((item: any) => ({
-      label: `${item.code} - ${item.name}`,
+      label: item.name,
       value: item.id,
     }));
   } catch (err) {

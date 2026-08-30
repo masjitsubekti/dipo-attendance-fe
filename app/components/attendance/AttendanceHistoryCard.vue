@@ -8,6 +8,7 @@ interface Props {
 const props = defineProps<Props>();
 
 const { formatDate } = useFormat();
+const { getFileUrl } = useFileUrl();
 
 const formatDateLabel = (iso: string): string => {
   return formatDate(iso, 'dddd, D MMMM YYYY', true);
@@ -74,7 +75,7 @@ const statusConfig = (status: string | null) => {
         <div class="shrink-0">
           <img
             v-if="attendance.checkinPhoto"
-            :src="attendance.checkinPhoto"
+            :src="getFileUrl(attendance.checkinPhoto)"
             alt="Check In"
             class="w-9 h-9 rounded-full object-cover border border-amber-300 dark:border-amber-500/40 shadow-xs"
           />
@@ -105,7 +106,7 @@ const statusConfig = (status: string | null) => {
         <div class="shrink-0">
           <img
             v-if="attendance.checkoutPhoto"
-            :src="attendance.checkoutPhoto"
+            :src="getFileUrl(attendance.checkoutPhoto)"
             alt="Check Out"
             class="w-9 h-9 rounded-full object-cover border border-slate-300 dark:border-slate-700 shadow-xs"
           />

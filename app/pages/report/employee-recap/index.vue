@@ -332,18 +332,12 @@
             <div class="flex"><span class="w-12 font-bold">A</span><span>: ALPHA</span></div>
             <div class="flex"><span class="w-12 font-bold">WFH</span><span>: Work From Home</span></div>
             <div class="flex"><span class="w-12 font-bold">M</span><span>: MANGKIR</span></div>
+            <div class="flex"><span class="w-12 font-bold">DL</span><span>: DINAS LUAR</span></div>
           </div>
 
-          <!-- Column 4: Abbreviations DLK, DDS, DDK, LBN -->
+          <!-- Column 4: Abbreviations LBN, CBR, CTH, SK -->
           <div class="space-y-1.5">
-            <div class="flex"><span class="w-12 font-bold">DLK</span><span>: DINAS LUAR KOTA</span></div>
-            <div class="flex"><span class="w-12 font-bold">DDS</span><span>: DINAS DALAM SURABAYA</span></div>
-            <div class="flex"><span class="w-12 font-bold">DDK</span><span>: DINAS AGLOMERASI</span></div>
             <div class="flex"><span class="w-12 font-bold">LBN</span><span>: LIBNAS</span></div>
-          </div>
-
-          <!-- Column 5: Abbreviations CBR, CTH, SK -->
-          <div class="space-y-1.5">
             <div class="flex"><span class="w-12 font-bold">CBR</span><span>: CUTI BERSALIN</span></div>
             <div class="flex"><span class="w-12 font-bold">CTH</span><span>: CUTI TAHUNAN</span></div>
             <div class="flex"><span class="w-12 font-bold">SK</span><span>: SAKIT</span></div>

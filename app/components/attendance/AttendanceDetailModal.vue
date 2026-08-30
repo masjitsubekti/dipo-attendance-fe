@@ -17,6 +17,7 @@ const emit = defineEmits<{
 }>();
 
 const { formatDate } = useFormat();
+const { getFileUrl } = useFileUrl();
 
 const formatDateFull = (iso: string | null | undefined): string => {
   if (!iso) return '—';
@@ -89,7 +90,7 @@ const statusConfig = (status: string | null) => {
         <!-- Checkin Photo -->
         <div v-if="attendance.checkinPhoto" class="space-y-1">
           <div class="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 aspect-[4/3] bg-slate-100 dark:bg-slate-800 shadow-xs">
-            <img :src="attendance.checkinPhoto" alt="Presensi Masuk" class="w-full h-full object-cover" />
+            <img :src="getFileUrl(attendance.checkinPhoto)" alt="Presensi Masuk" class="w-full h-full object-cover" />
             <div class="absolute bottom-2 left-2 right-2 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-1 rounded-lg flex items-center justify-between">
               <span class="flex items-center gap-1">
                 <i class="mdi mdi-login text-emerald-400"></i> Masuk
@@ -102,7 +103,7 @@ const statusConfig = (status: string | null) => {
         <!-- Checkout Photo -->
         <div v-if="attendance.checkoutPhoto" class="space-y-1">
           <div class="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 aspect-[4/3] bg-slate-100 dark:bg-slate-800 shadow-xs">
-            <img :src="attendance.checkoutPhoto" alt="Presensi Pulang" class="w-full h-full object-cover" />
+            <img :src="getFileUrl(attendance.checkoutPhoto)" alt="Presensi Pulang" class="w-full h-full object-cover" />
             <div class="absolute bottom-2 left-2 right-2 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-1 rounded-lg flex items-center justify-between">
               <span class="flex items-center gap-1">
                 <i class="mdi mdi-logout text-blue-400"></i> Pulang

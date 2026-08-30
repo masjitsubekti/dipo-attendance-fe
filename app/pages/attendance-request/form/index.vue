@@ -125,8 +125,9 @@
                   v-model="uploadedFile"
                   accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
                   placeholder="Unggah berkas surat dokter, bukti izin, atau dokumen pendukung"
-                  hint="Format didukung: PDF, PNG, JPG, DOC (Maks. 5MB)"
-                  :max-size="5"
+                  hint="Format didukung: PDF, PNG, JPG, DOC (Maks. 1MB)"
+                  :max-size="1"
+                  @error="handleFileError"
                 />
                 <div v-if="form.filePath" class="flex items-center gap-2 mt-2 text-xs text-blue-600 dark:text-blue-400 font-medium">
                   <UiIcon name="mdi-paperclip" class="text-sm" />
@@ -255,16 +256,25 @@ function handleCancel() {
   router.back();
 }
 
+function handleFileError(msg: string) {
+  swal.toast(msg || "Ukuran berkas melebihi batas maksimal 1MB", "warning");
+}
+
 async function onSubmit() {
   const isValid = await formRef.value?.validate();
   if (!isValid) return;
-
-  isLoadingSave.value = true;
 
   let fileObj: File | null = null;
   if (uploadedFile.value) {
     fileObj = Array.isArray(uploadedFile.value) ? (uploadedFile.value[0] ?? null) : uploadedFile.value;
   }
+
+  if (fileObj && fileObj.size > 1 * 1024 * 1024) {
+    swal.toast(`Ukuran berkas "${fileObj.name}" melebihi batas maksimal (Maksimal 1MB)`, "warning");
+    return;
+  }
+
+  isLoadingSave.value = true;
 
   attendanceRequestSvc
     .save(form.value, fileObj)

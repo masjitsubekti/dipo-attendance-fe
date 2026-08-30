@@ -263,11 +263,10 @@ const mapCenter = computed<[number, number]>(() => {
   return [Number(lat), Number(lng)];
 });
 
+const { getFileUrl: resolveFileUrl } = useFileUrl();
+
 const getPhotoUrl = (url: string | null | undefined) => {
-  if (!url) return "";
-  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return url;
-  const cleanPath = url.replace(/^\//, "");
-  return `http://localhost:3333/${cleanPath}`;
+  return resolveFileUrl(url);
 };
 
 const formatDateOnly = (val: any) => (val ? formatDate(val, "DD-MM-YYYY", true) : "—");

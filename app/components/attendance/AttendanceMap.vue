@@ -152,19 +152,9 @@ const updateUserMarker = () => {
 };
 
 const fitMapBounds = () => {
-  if (!mapInstance || !LInstance) return;
+  if (!mapInstance) return;
   mapInstance.invalidateSize();
-  const points: [number, number][] = [[props.institutionLat, props.institutionLon]];
-  if (props.userLat !== null && props.userLon !== null) {
-    points.push([props.userLat, props.userLon]);
-  }
-
-  if (points.length === 1) {
-    mapInstance.setView(points[0], 17);
-  } else {
-    const bounds = LInstance.latLngBounds(points);
-    mapInstance.fitBounds(bounds, { padding: [30, 30] });
-  }
+  mapInstance.setView([props.institutionLat, props.institutionLon], 17);
 };
 
 const focusUserLocation = () => {
@@ -182,7 +172,7 @@ watch([() => props.userLat, () => props.userLon], () => {
   updateUserMarker();
 }, { immediate: true });
 
-// Watch for institution location changes (e.g. after updating master location or fetching new today data)
+// Watch for institution location changes (e.g. after updating master location, changing location select, or fetching new today data)
 watch([() => props.institutionLat, () => props.institutionLon, () => props.radiusMeter, () => props.locationName], () => {
   if (!mapInstance || !LInstance) return;
   if (institutionMarker) {
@@ -194,6 +184,7 @@ watch([() => props.institutionLat, () => props.institutionLon, () => props.radiu
     radiusCircle.setRadius(props.radiusMeter);
   }
   updateUserMarker();
+  fitMapBounds();
 });
 
 defineExpose({

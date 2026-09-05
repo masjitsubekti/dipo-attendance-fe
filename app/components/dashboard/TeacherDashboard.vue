@@ -595,10 +595,12 @@
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useAuthStore } from "~/stores/auth";
 import { useSwal } from "~/composables/useSwal";
+import dashboardService from "~/services/dashboard.service";
 
 const authStore = useAuthStore();
 const swal = useSwal();
 const router = useRouter();
+const dashboardSvc = dashboardService();
 
 // User info from store
 const userName = computed(() => authStore.user?.name || "Bpk. Budi Santoso, S.Pd");

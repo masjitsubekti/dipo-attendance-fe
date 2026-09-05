@@ -1,7 +1,10 @@
 <template>
   <UiTooltip :text="tooltip" :position="tooltipPosition">
-    <button
-      :type="type"
+    <component
+      :is="componentTag"
+      :href="computedHref"
+      :target="target"
+      :type="componentTag === 'button' ? type : undefined"
       :style="buttonStyle"
       :class="buttonClass"
       :disabled="disabled || loading"
@@ -13,7 +16,7 @@
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
       </svg>
       <UiIcon v-else :name="icon" :type="iconType" :size="iconSize" />
-    </button>
+    </component>
   </UiTooltip>
 </template>
 
@@ -32,6 +35,9 @@ interface Props {
   disabled?: boolean
   loading?: boolean
   type?: 'button' | 'submit' | 'reset'
+  to?: string | Record<string, any>
+  href?: string
+  target?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -50,6 +56,27 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   click: [event: MouseEvent]
 }>()
+
+const computedHref = computed(() => {
+  if (props.href) return props.href
+  if (props.to) {
+    if (typeof props.to === 'string') return props.to
+    if (typeof props.to === 'object' && (props.to as any).path) {
+      let url = (props.to as any).path
+      if ((props.to as any).query) {
+        const params = new URLSearchParams((props.to as any).query).toString()
+        if (params) url += '?' + params
+      }
+      return url
+    }
+  }
+  return undefined
+})
+
+const componentTag = computed(() => {
+  if (computedHref.value) return 'a'
+  return 'button'
+})
 
 // Color mapping
 const colorMap: Record<string, string> = {
@@ -152,8 +179,13 @@ const buttonClass = computed(() => {
 })
 
 const handleClick = (event: MouseEvent) => {
-  if (!props.disabled && !props.loading) {
-    emit('click', event)
+  if (props.disabled || props.loading) {
+    event.preventDefault()
+    return
   }
+  if (computedHref.value && event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey && !props.target) {
+    event.preventDefault()
+  }
+  emit('click', event)
 }
 </script>

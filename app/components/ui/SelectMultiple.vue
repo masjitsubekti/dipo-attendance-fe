@@ -232,7 +232,7 @@ defineExpose({
     <label 
       v-if="label" 
       :for="selectId"
-      class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
+      class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
     >
       {{ label }}
       <span v-if="required" class="text-red-500 ml-0.5">*</span>

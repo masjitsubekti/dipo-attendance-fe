@@ -112,7 +112,7 @@
         Rekap Presensi Pegawai
       </h3>
       <p class="mt-1 text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-        Silakan pilih Institusi, Pegawai, Bulan, dan Tahun pada form filter di atas untuk menampilkan laporan rekapitulasi kehadiran.
+        Silakan pilih Institusi, Pegawai, Bulan, dan Tahun pada form filter di atas, lalu klik <strong>Tampilkan Report</strong> untuk menampilkan laporan.
       </p>
     </UiCard> -->
 
@@ -199,8 +199,8 @@
               <th rowspan="3" class="border-r border-b border-slate-200 dark:border-slate-700 px-2 py-2.5 align-middle">HARI</th>
               <th colspan="6" class="border-r border-b border-slate-200 dark:border-slate-700 px-2 py-2 align-middle">REGULAR</th>
               <th colspan="2" class="border-r border-b border-slate-200 dark:border-slate-700 px-2 py-2 align-middle">NON REGULAR</th>
-              <th rowspan="3" class="border-r border-b border-slate-200 dark:border-slate-700 px-2 py-2.5 align-middle">KETERANGAN</th>
-              <th rowspan="3" class="border-b border-slate-200 dark:border-slate-700 px-2 py-2.5 align-middle">KETERANGAN REGULAR / NON</th>
+              <th rowspan="3" class="border-r border-b border-slate-200 dark:border-slate-700 px-2 py-2.5 align-middle">STATUS</th>
+              <th rowspan="3" class="border-b border-slate-200 dark:border-slate-700 px-2 py-2.5 align-middle">KETERANGAN</th>
             </tr>
             <tr class="bg-slate-50 dark:bg-slate-800/80 font-semibold text-slate-800 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700">
               <th rowspan="2" class="border-r border-b border-slate-200 dark:border-slate-700 px-2 py-2 w-16 align-middle">MASUK</th>
@@ -249,7 +249,7 @@
                 {{ row.keterangan }}
               </td>
               <!-- Keterangan Detail -->
-              <td class="px-2 py-2.5 text-left font-medium uppercase truncate" :title="row.keteranganDetail">{{ row.keteranganDetail }}</td>
+              <td class="px-2 py-2.5 text-left font-medium" :title="row.keteranganDetail">{{ row.keteranganDetail }}</td>
             </tr>
           </tbody>
 
@@ -278,7 +278,7 @@
       </div>
 
       <!-- Legend / Keterangan Section -->
-      <div class="mt-6 pt-4 text-xs text-slate-900 dark:text-slate-100 border-t border-slate-200 dark:border-slate-700">
+      <div class="text-xs text-slate-900 dark:text-slate-100 border-slate-200 dark:border-slate-700">
         <h4 class="font-bold text-sm mb-3">Keterangan</h4>
         
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-x-6 gap-y-2 font-medium text-xs">
@@ -345,6 +345,15 @@
         </div>
       </div>
     </UiCard>
+
+    <!-- Hidden Print Template -->
+    <div style="position: absolute; left: -9999px; top: -9999px; opacity: 0; pointer-events: none;">
+      <ReportEmployeeRecapTemplate
+        v-if="reportData"
+        ref="printTemplateRef"
+        :data="reportData"
+      />
+    </div>
   </div>
 </template>
 
@@ -354,6 +363,7 @@ import institutionService from "@/services/institution.service";
 import personService from "@/services/person.service";
 import { useSwal } from "~/composables/useSwal";
 import { useExcelExport } from "~/composables/useExcelExport";
+import { useHTMLPrint } from "~/composables/useHTMLPrint";
 
 definePageMeta({
   layout: "admin",
@@ -376,7 +386,9 @@ const reportSvc = reportService();
 const institutionSvc = institutionService();
 const personSvc = personService();
 const { exportToExcel, isExporting } = useExcelExport();
+const { printHTML } = useHTMLPrint();
 
+const printTemplateRef = ref();
 const isLoading = ref(false);
 const isLoadingPerson = ref(false);
 const reportData = ref<any>(null);
@@ -391,6 +403,14 @@ const filter = reactive({
   month: currentDate.getMonth() + 1,
   year: currentDate.getFullYear(),
 });
+
+// Auto reset preview & disable Cetak/Excel buttons when any filter changes
+watch(
+  () => [filter.institutionId, filter.personId, filter.month, filter.year],
+  () => {
+    reportData.value = null;
+  }
+);
 
 const monthOptions = [
   { label: "Januari", value: 1 },
@@ -519,8 +539,31 @@ function getKeteranganStyle(row: any) {
   };
 }
 
-function handlePrint() {
-  window.print();
+async function handlePrint() {
+  if (!reportData.value) return;
+
+  await nextTick();
+  const componentRef = printTemplateRef.value;
+  const htmlContent = componentRef?.$el?.outerHTML || "";
+  const { customStyles, customPrintStyles } = componentRef?.getPrintStyles?.() || {};
+
+  const empName = reportData.value.employee?.name || "Pegawai";
+  const periodText = reportData.value.company?.periodText || "";
+
+  printHTML(htmlContent, {
+    title: `Rekap Presensi - ${empName} (${periodText})`,
+    margin: {
+      top: "0.8cm",
+      bottom: "0.5cm",
+      left: "0.8cm",
+      right: "0.8cm"
+    },
+    orientation: "portrait",
+    paperSize: "A4",
+    customStyles,
+    customPrintStyles,
+    fontFamily: "'Arial', sans-serif",
+  });
 }
 
 async function handleExportExcel() {
@@ -552,8 +595,18 @@ async function handleExportExcel() {
     filename: fileName,
     sheetName: "Rekap Presensi",
     headerOptions: {
-      title: reportData.value.company.name,
+      title: reportData.value.employee.institution,
       subtitle: `LAPORAN PER PERIODE KEHADIRAN PEGAWAI - ${periodStr.replace('_', ' ')}`,
+    },
+    summaryData: {
+      label: "TOTAL",
+      labelColspan: 3,
+      data: {
+        telatJam: reportData.value.summary?.totalLateHours > 0 ? reportData.value.summary.totalLateHours : "-",
+        telatMenit: reportData.value.summary?.totalLateRemainingMinutes > 0 ? reportData.value.summary.totalLateRemainingMinutes : "-",
+        pulangCepatJam: reportData.value.summary?.totalEarlyLeaveHours > 0 ? reportData.value.summary.totalEarlyLeaveHours : "-",
+        pulangCepatMenit: reportData.value.summary?.totalEarlyLeaveRemainingMinutes > 0 ? reportData.value.summary.totalEarlyLeaveRemainingMinutes : "-",
+      },
     },
     mergeHeaders: [
       { cellFrom: "A1", cellTo: "A3", value: "NO" },
@@ -571,8 +624,8 @@ async function handleExportExcel() {
       { cellFrom: "J1", cellTo: "K1", value: "NON REGULAR" },
       { cellFrom: "J2", cellTo: "J3", value: "MASUK" },
       { cellFrom: "K2", cellTo: "K3", value: "PULANG" },
-      { cellFrom: "L1", cellTo: "L3", value: "KETERANGAN" },
-      { cellFrom: "M1", cellTo: "M3", value: "KETERANGAN REGULAR / NON" },
+      { cellFrom: "L1", cellTo: "L3", value: "STATUS" },
+      { cellFrom: "M1", cellTo: "M3", value: "KETERANGAN" },
     ],
     columns: [
       { header: "TANGGAL", key: "tanggal", width: 14 },

@@ -5,15 +5,18 @@
       <h2 class="text-lg font-semibold text-white">{{ title }}</h2>
       <div class="flex items-center gap-1">
         <ClientOnly>
-          <template v-for="action in validActions(actionToolbars, {})" :key="action.key">
+          <template v-for="action in validActions(actionToolbars, {})" :key="action.key || action.emit">
             <UiIconButton
               :icon="action.icon || 'mdi-help'"
               :tooltip="action.tooltip"
               :color="action.color"
-              :loading="actionLoading[action.key]"
+              :to="resolveActionTo(action, {})"
+              :href="resolveActionHref(action, {})"
+              :target="resolveActionTarget(action)"
+              :loading="action.key ? actionLoading?.[action.key] : false"
               variant="ghost"
               size="lg"
-              @click="$emit(action.emit as any)"
+              @click="(e) => handleToolbarClick(action, e)"
             />
           </template>
         </ClientOnly>
@@ -56,22 +59,26 @@
               <div class="flex items-center gap-2 w-full">
                 <component
                   :is="componentResolver(f.type)"
-                  v-model="filterLocal[f.name]"
+                  :model-value="filterLocal[f.name]"
                   :field="f"
                   :disabled="isDisabled(f)"
                   :items="getList(f.items)"
                   class="flex-1"
                   @apply="handleApplyFilterField(f)"
+                  @update:model-value="(val: any) => handleFilterUpdate(f, val)"
                 >
                   <template v-if="f.type === 'search' && addAction" #append>  
                     <UiIconButton
                       :icon="addAction.icon || 'mdi-plus'"
                       :tooltip="addAction.tooltip"
                       :color="addAction.color || 'primary'"
+                      :to="resolveActionTo(addAction, {})"
+                      :href="resolveActionHref(addAction, {})"
+                      :target="resolveActionTarget(addAction)"
                       variant="ghost"
                       rounded="full"
                       size="xl"
-                      @click="$emit(addAction.emit as any)"
+                      @click="(e) => handleToolbarClick(addAction, e)"
                     />
                   </template>
 
@@ -148,15 +155,45 @@
           <slot name="item.actions" :item="item">
             <div v-if="actions.length > 0" class="flex items-center justify-center gap-1.5">
               <ClientOnly>
-                <template v-for="action in validActions(actions, item)" :key="action.key">
-                  <UiIconButton
-                    :icon="action.icon || 'mdi-help'"
-                    :tooltip="action.tooltip"
-                    :color="action.color"
-                    size="sm"
-                    rounded="md"
-                    @click="emitDynamic(action.emit, item)"
-                  />
+                <template v-if="actionType === 'dropdown'">
+                  <UiDropdown
+                    v-if="validActions(actions, item).length > 0"
+                    :items="getDropdownActions(actions, item)"
+                    @select="(opt) => handleDropdownSelect(opt, item)"
+                    align="left"
+                  >
+                    <template #trigger>
+                      <UiButton
+                        color="secondary"
+                        variant="outline"
+                        size="sm"
+                      >
+                        <span>{{ actionDropdownLabel }}</span>
+                        <i class="mdi mdi-chevron-down text-base ml-1" />
+                      </UiButton>
+                    </template>
+                    <template #item="{ item: opt }">
+                      <div class="flex items-center gap-2">
+                        <i v-if="opt.icon" :class="['mdi', opt.icon, 'text-lg', opt.color]" />
+                        <span>{{ opt.label }}</span>
+                      </div>
+                    </template>
+                  </UiDropdown>
+                </template>
+                <template v-else>
+                  <template v-for="action in validActions(actions, item)" :key="action.key || action.emit">
+                    <UiIconButton
+                      :icon="action.icon || 'mdi-help'"
+                      :tooltip="action.tooltip"
+                      :color="action.color"
+                      :to="resolveActionTo(action, item)"
+                      :href="resolveActionHref(action, item)"
+                      :target="resolveActionTarget(action)"
+                      size="sm"
+                      rounded="md"
+                      @click="(e) => handleActionClick(action, item, e)"
+                    />
+                  </template>
                 </template>
               </ClientOnly>
             </div>
@@ -253,9 +290,14 @@
 </template>
 
 <script setup lang="ts">
+import { usePermission } from '~/composables/usePermission'
+import type { DropdownItem } from '~/components/ui/Dropdown.vue'
+
 defineOptions({
   inheritAttrs: false
 })
+
+const { hasPermission, hasAnyPermission } = usePermission()
 
 // Types
 interface Header {
@@ -288,16 +330,25 @@ interface FilterField {
   placeholder?: string
   showInModal?: boolean
   showAboveTable?: boolean
+  showChip?: boolean
+  debounce?: boolean | number
 }
 
 interface Action {
-  key: string
+  key?: string
+  label?: string
+  value?: string
   icon?: string
   color?: string
   tooltip?: string
   show?: (item: any) => boolean
-  emit: string
+  permission?: string | string[]
+  emit?: string
   type?: 'default'
+  to?: string | ((item: any) => string)
+  href?: string | ((item: any) => string)
+  target?: '_blank' | '_self' | string
+  openInNewTab?: boolean
 }
 
 interface TableMeta {
@@ -319,15 +370,18 @@ interface Props {
   tableData: TableData
   filterSchema?: FilterField[]
   actions?: Action[]
+  actionType?: 'button' | 'dropdown'
+  actionDropdownLabel?: string
   actionToolbars?: Action[]
   filterList?: Record<string, any[]>
   actionLoading?: Record<string, boolean>
-  rowClass?: (row: { item: any }) => Record<string, any>
+  rowClass?: (row: { item: any }) => string | Record<string, any>
   rowClick?: (item: any) => void
   defaultSortBy?: string
   defaultSortType?: 'asc' | 'desc'
   headerTheme?: 'red' | 'blue' | 'green' | 'purple' | 'orange' | 'slate' | 'primary'
   elevated?: 'none' | 'sm' | 'md' | 'lg' | 'xl'
+  permissionTag?: string
   contentPadding?: string
   fitTable?: boolean
   showTable?: boolean
@@ -342,6 +396,8 @@ const props = withDefaults(defineProps<Props>(), {
   tableData: () => ({ items: [], meta: { totalItems: 0 } }),
   filterSchema: () => [],
   actions: () => [],
+  actionType: 'button',
+  actionDropdownLabel: 'Tools',
   actionToolbars: () => [],
   filterList: () => ({}),
   actionLoading: () => ({}),
@@ -396,14 +452,13 @@ const router = useRouter()
 const slots = useSlots()
 const attrs = useAttrs()
 
-// Helper to emit dynamic events without Vue validation warning
-const emitDynamic = (eventName: string, ...args: any[]) => {
+const emitDynamic = (eventName?: string, ...args: any[]) => {
+  if (!eventName) return
   const handlerName = `on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`
   const handler = attrs[handlerName] as ((...args: any[]) => void) | undefined
   if (handler) {
     handler(...args)
   } else {
-    // Fallback to regular emit for declared events
     emit(eventName as any, ...args)
   }
 }
@@ -415,6 +470,7 @@ const itemsPerPageOptions = [
   { value: 20, title: '20' },
   { value: 40, title: '40' },
   { value: 50, title: '50' },
+  { value: 100, title: '100' },
 ]
 const initialSortOrder =
   String(route.query.sortType || props.defaultSortType).toLowerCase() === 'asc'
@@ -472,6 +528,10 @@ const getFieldLabel = (f: FilterField) => {
 const activeChips = computed(() => {
   return modalFilterSchema.value
     .filter((f) => {
+      if (f.showChip) {
+        return false
+      }
+      
       // Exclude if it is also displayed above the table
       const isShownAbove = f.showAboveTable !== undefined ? f.showAboveTable : !f.showInModal
       if (isShownAbove) {
@@ -532,17 +592,127 @@ const numberInc = computed(() => {
   return number
 })
 
+const resolvePermission = (perm: string): string => {
+  if (!props.permissionTag) return perm
+  if (perm.includes('.')) return perm
+  return `${props.permissionTag}.${perm}`
+}
+
+const checkPermissionRule = (permission?: string | string[]) => {
+  if (!permission) return true
+  if (Array.isArray(permission)) {
+    return hasAnyPermission(permission.map(resolvePermission))
+  }
+  return hasPermission(resolvePermission(permission))
+}
+
 const addAction = computed(() => {
-  return props.actionToolbars?.find((a) => a.type === 'default' && a.show?.({}) !== false)
+  return props.actionToolbars?.find((a) => {
+    if (a.type !== 'default') return false
+    if (!checkPermissionRule(a.permission)) return false
+    return a.show?.({}) !== false
+  })
 })
 
 // Methods
 const validActions = (arr: Action[], item: any) => {
   return arr.filter((a) => {
     if (a.type === 'default') return false
+    if (!checkPermissionRule(a.permission)) return false
     if (typeof a.show === 'function') return a.show(item)
     return true
   })
+}
+
+const resolveActionTo = (action: Action, item: any): string | undefined => {
+  if (typeof action.to === 'function') {
+    return action.to(item)
+  }
+  return action.to
+}
+
+const resolveActionHref = (action: Action, item: any): string | undefined => {
+  const hrefVal = typeof action.href === 'function' ? action.href(item) : action.href
+  if (hrefVal) return hrefVal
+  const toVal = typeof action.to === 'function' ? action.to(item) : action.to
+  if (typeof toVal === 'string') return toVal
+  if (toVal && typeof toVal === 'object' && (toVal as any).path) {
+    let url = (toVal as any).path
+    if ((toVal as any).query) {
+      const params = new URLSearchParams((toVal as any).query).toString()
+      if (params) url += '?' + params
+    }
+    return url
+  }
+  return undefined
+}
+
+const resolveActionTarget = (action: Action): string | undefined => {
+  if (action.target) return action.target
+  if (action.openInNewTab) return '_blank'
+  return undefined
+}
+
+const getDropdownActions = (arr: Action[], item: any): DropdownItem[] => {
+  return validActions(arr, item).map((a) => ({
+    label: a.label || a.tooltip || a.key || '',
+    value: a.value || a.key || a.emit || '',
+    icon: a.icon,
+    color: a.color,
+    emit: a.emit,
+    to: resolveActionTo(a, item),
+    href: resolveActionHref(a, item),
+    target: resolveActionTarget(a),
+    openInNewTab: a.openInNewTab,
+  }))
+}
+
+const handleToolbarClick = (action: Action, event?: MouseEvent) => {
+  const href = resolveActionHref(action, {})
+  const target = resolveActionTarget(action)
+  if (href) {
+    if (target === '_blank') {
+      window.open(href, '_blank')
+    } else if (event && (event.ctrlKey || event.metaKey)) {
+      window.open(href, '_blank')
+    } else {
+      navigateTo(href)
+    }
+  } else if (action.emit) {
+    emit(action.emit as any)
+  }
+}
+
+const handleActionClick = (action: Action, item: any, event?: MouseEvent) => {
+  const href = resolveActionHref(action, item)
+  const target = resolveActionTarget(action)
+  if (href) {
+    if (target === '_blank') {
+      window.open(href, '_blank')
+    } else if (event && (event.ctrlKey || event.metaKey)) {
+      window.open(href, '_blank')
+    } else {
+      navigateTo(href)
+    }
+  } else if (action.emit) {
+    emitDynamic(action.emit, item)
+  }
+}
+
+const handleDropdownSelect = (opt: DropdownItem, item: any, event?: MouseEvent) => {
+  const href = opt.href || opt.to
+  const target = opt.target || (opt.openInNewTab ? '_blank' : undefined)
+  if (href) {
+    if (target === '_blank') {
+      window.open(href, '_blank')
+    } else if (event && (event.ctrlKey || event.metaKey)) {
+      window.open(href, '_blank')
+    } else {
+      navigateTo(href)
+    }
+  } else if (opt.emit) {
+    emitDynamic(opt.emit, item)
+  }
 }
 
 const resetFilterFromSchema = () => {
@@ -614,7 +784,51 @@ const getFilterColClasses = (field: FilterField, isModal = false) => {
   return `col-span-1 sm:col-span-1 ${lgClass}`
 }
 
+const debounceTimers = ref<Record<string, any>>({})
+
+const clearDebounceTimer = (fieldName?: string) => {
+  if (fieldName) {
+    if (debounceTimers.value[fieldName]) {
+      clearTimeout(debounceTimers.value[fieldName])
+      delete debounceTimers.value[fieldName]
+    }
+  } else {
+    Object.keys(debounceTimers.value).forEach((key) => {
+      clearTimeout(debounceTimers.value[key])
+    })
+    debounceTimers.value = {}
+  }
+}
+
+const handleFilterUpdate = (field: FilterField, val: any) => {
+  filterLocal.value[field.name] = val
+  handleFilterInput(field)
+}
+
+const handleFilterInput = (field: FilterField) => {
+  if (field.type === 'select' || field.type === 'autocomplete' || field.type === 'date') {
+    return
+  }
+
+  if (field.debounce === false) {
+    return
+  }
+
+  const isSearchField = field.type === 'search' || field.name === 'q' || !!field.debounce
+  if (!isSearchField) {
+    return
+  }
+
+  clearDebounceTimer(field.name)
+  const delay = typeof field.debounce === 'number' ? field.debounce : 500
+  debounceTimers.value[field.name] = setTimeout(() => {
+    handleApplyFilterField(field)
+  }, delay)
+}
+
 const handleApplyFilterField = (field: FilterField) => {
+  clearDebounceTimer(field.name)
+
   if (field.resetOnSelect && typeof field.resetOnSelect === 'object') {
     Object.keys(field.resetOnSelect).forEach((k) => {
       filterLocal.value[k] = field.resetOnSelect![k]
@@ -629,6 +843,10 @@ const handleApplyFilterField = (field: FilterField) => {
   filterLocal.value.t = Date.now()
   router.replace({ path: route.path, query: filterLocal.value })
 }
+
+onUnmounted(() => {
+  clearDebounceTimer()
+})
 
 const openModal = () => {
   tempFilterLocal.value = { ...filterLocal.value }
@@ -766,5 +984,24 @@ onMounted(() => {
       }
     })
   }
+
+  const restoredPageSize = Number(filterLocal.value.pageSize)
+  if (Number.isFinite(restoredPageSize) && restoredPageSize > 0) {
+    itemsPerPage.value = restoredPageSize
+    filterLocal.value.pageSize = restoredPageSize
+  }
 })
+
+watch(
+  () => props.tableData?.meta?.totalItems,
+  (total) => {
+    const totalItems = Number(total) || 0
+    if (totalItems <= 0) return
+
+    const lastPage = Math.max(1, Math.ceil(totalItems / (itemsPerPage.value || 1)))
+    if ((Number(filterLocal.value.pageNumber) || 1) > lastPage) {
+      handlePageChanged(lastPage)
+    }
+  },
+)
 </script>

@@ -4,7 +4,7 @@ import { useAuthStore } from "~/stores/auth";
 // Track if menus have been loaded in this session
 let menusLoadedThisSession = false;
 
-export default defineNuxtRouteMiddleware(async (to) => {
+export default defineNuxtRouteMiddleware(async (to, from) => {
     // Skip middleware on server-side to avoid hydration issues
     // Pinia persistence only works on client-side
     if (import.meta.server) {
@@ -42,11 +42,18 @@ export default defineNuxtRouteMiddleware(async (to) => {
     }
 
     // Load menus on first navigation of this session (after page refresh or login)
-    // This ensures menus are always fresh from API
+    // Use Promise.race timeout (3s) so middleware is never blocked if API/BE is down
     if (authStore.user?.roleId && !menusLoadedThisSession) {
-        await authStore.loadAuthMenu({
-            roleId: authStore.user.roleId,
-        });
+        try {
+            await Promise.race([
+                authStore.loadAuthMenu({
+                    roleId: authStore.user.roleId,
+                }),
+                new Promise((resolve) => setTimeout(resolve, 3000)),
+            ]);
+        } catch (e) {
+            // ignore error if API is down
+        }
         menusLoadedThisSession = true;
     }
 
@@ -60,7 +67,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
     // ============ RBAC Permission Check ============
     // Check if route has permission requirement in meta
-    const requiredPermission = to.meta.permission as string | undefined;
+    const requiredPermission = to.meta.permission as string | string[] | undefined;
 
     if (requiredPermission) {
         const permissions = authStore.permissions || [];
@@ -69,11 +76,27 @@ export default defineNuxtRouteMiddleware(async (to) => {
             return;
         }
 
-        const hasPermission = permissions.includes(requiredPermission);
+        let hasPermission = false;
+        if (Array.isArray(requiredPermission)) {
+            hasPermission = requiredPermission.some((p) => permissions.includes(p));
+        } else {
+            hasPermission = permissions.includes(requiredPermission);
+        }
 
         if (!hasPermission) {
             useSwal().toast("Anda tidak memiliki akses ke halaman ini", 'error');
-            return navigateTo("/logout");
+
+            // Detect if navigation is a jump path (direct URL entry / refresh) vs in-app navigation (button click)
+            const isJumpPath = !from || !from.name || from.matched.length === 0;
+
+            if (isJumpPath) {
+                // Direct URL jump path without permission -> Auto Logout
+                return navigateTo("/logout");
+            } else {
+                // In-app button click without permission -> Redirect to previous page or "/", NO logout
+                const fallbackUrl = (from.path && from.path !== to.path) ? from.path : "/";
+                return navigateTo(fallbackUrl);
+            }
         }
     }
 });

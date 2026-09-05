@@ -104,13 +104,11 @@ const getFileIcon = (file: File) => {
   return iconMap[ext || ''] || 'mdi mdi-file text-slate-500';
 };
 
-const fileError = ref<string | null>(null);
-
 const validateFile = (file: File): string | null => {
   // Check file size
   const maxBytes = props.maxSize * 1024 * 1024;
   if (file.size > maxBytes) {
-    return `Ukuran berkas "${file.name}" terlalu besar. Maksimal ${props.maxSize}MB.`;
+    return t('import.error_file_too_large', { max: props.maxSize + 'MB' });
   }
   
   // Check file type if accept is specified
@@ -130,7 +128,7 @@ const validateFile = (file: File): string | null => {
     });
     
     if (!isAccepted) {
-      return `Format berkas "${file.name}" tidak didukung.`;
+      return t('import.error_invalid_type');
     }
   }
   
@@ -139,7 +137,6 @@ const validateFile = (file: File): string | null => {
 
 const handleFiles = (files: FileList | null) => {
   if (!files || files.length === 0) return;
-  fileError.value = null;
   
   const validFiles: File[] = [];
   
@@ -150,7 +147,6 @@ const handleFiles = (files: FileList | null) => {
     const error = validateFile(file);
     
     if (error) {
-      fileError.value = error;
       emit('error', error);
       continue;
     }
@@ -196,7 +192,6 @@ const handleDragLeave = () => {
 };
 
 const clearFile = (index?: number) => {
-  fileError.value = null;
   if (props.multiple && Array.isArray(props.modelValue) && index !== undefined) {
     const newFiles = [...props.modelValue];
     newFiles.splice(index, 1);
@@ -258,12 +253,8 @@ defineExpose({
       <p class="text-slate-600 dark:text-slate-400 mt-2">
         {{ placeholderText }}
       </p>
-      <p v-if="hintText && !fileError" class="text-xs text-slate-400 mt-2">
+      <p v-if="hintText" class="text-xs text-slate-400 mt-2">
         {{ hintText }}
-      </p>
-      <p v-if="fileError" class="text-xs font-semibold text-rose-600 dark:text-rose-400 mt-2.5 inline-flex items-center justify-center gap-1.5 bg-rose-50 dark:bg-rose-950/60 py-1.5 px-3 rounded-md border border-rose-200 dark:border-rose-800/60">
-        <i class="mdi mdi-alert-circle text-sm"></i>
-        <span>{{ fileError }}</span>
       </p>
     </div>
 

@@ -1,11 +1,17 @@
 <script setup lang="ts">
-interface DropdownItem {
+export interface DropdownItem {
   label: string;
   value?: string;
   icon?: string;
   divider?: boolean;
   danger?: boolean;
   color?: string;
+  emit?: string;
+  to?: string;
+  href?: string;
+  target?: string;
+  openInNewTab?: boolean;
+  [key: string]: any;
 }
 
 interface Props {
@@ -20,6 +26,45 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   select: [item: DropdownItem];
 }>();
+
+const getItemHref = (item: DropdownItem) => {
+  if (item.href) return item.href;
+  if (item.to) {
+    if (typeof item.to === 'string') return item.to;
+    if (typeof item.to === 'object' && (item.to as any).path) {
+      let url = (item.to as any).path;
+      if ((item.to as any).query) {
+        const params = new URLSearchParams((item.to as any).query).toString();
+        if (params) url += '?' + params;
+      }
+      return url;
+    }
+  }
+  return undefined;
+};
+
+const getItemComponent = (item: DropdownItem) => {
+  if (getItemHref(item)) return 'a';
+  return 'button';
+};
+
+const getItemTarget = (item: DropdownItem) => {
+  if (item.target) return item.target;
+  if (item.openInNewTab) return '_blank';
+  return undefined;
+};
+
+const handleItemClick = (item: DropdownItem, event: MouseEvent) => {
+  if (item.divider) return;
+  const href = getItemHref(item);
+  const target = getItemTarget(item);
+
+  if (href && event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey && !target) {
+    event.preventDefault();
+  }
+
+  selectItem(item);
+};
 
 const isOpen = ref(false);
 const dropdownRef = ref<HTMLElement>();
@@ -143,20 +188,23 @@ onMounted(() => {
         >
           <template v-for="(item, index) in items" :key="index">
             <div v-if="item.divider" class="my-2 border-t border-slate-200 dark:border-slate-700" />
-            <button
+            <component
+              :is="getItemComponent(item)"
               v-else
+              :href="getItemHref(item)"
+              :target="getItemTarget(item)"
               :class="[
                 'w-full flex items-center gap-3 px-4 py-2 text-sm text-left transition-colors',
                 item.danger
                   ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
                   : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700',
               ]"
-              @click="selectItem(item)"
+              @click="(e) => handleItemClick(item, e)"
             >
               <slot name="item" :item="item">
                 {{ item.label }}
               </slot>
-            </button>
+            </component>
           </template>
         </div>
       </Transition>

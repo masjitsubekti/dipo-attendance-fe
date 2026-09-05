@@ -101,7 +101,7 @@ export function useHTMLPrint() {
               .no-print { display: none !important; }
               @page {
                 size: ${paperSize} ${orientation};
-                margin: ${cssMargin};
+                margin: 0;
               }
               body { 
                 margin: 0 !important; 
@@ -112,12 +112,13 @@ export function useHTMLPrint() {
                 print-color-adjust: exact !important;
               }
               .print-page { 
-                margin: 0 !important; 
-                padding: 0 !important;
+                margin: 0 auto !important; 
+                padding: ${cssMargin} !important;
                 box-shadow: none !important;
                 border-radius: 0 !important;
                 max-width: 100% !important;
                 width: 100% !important;
+                box-sizing: border-box !important;
                 min-height: unset !important;
                 background-color: transparent !important;
               }

@@ -13,8 +13,11 @@
       :filterSchema="filterSchema"
       :filterList="{ listInstitution, listPosition, listDepartment, listAttendanceType, listStatus }"
       :actions="actions"
+      :actionToolbars="actionToolbars"
+      :actionLoading="{ exportItem: isExporting }"
       @fetchData="loadAll"
       @detailItem="openMapsModal"
+      @exportItem="exportItem"
     >
       <!-- Date Column (DD-MM-YYYY) -->
       <template v-slot:[`item.attendanceDate`]="{ value }">
@@ -89,6 +92,7 @@ import attendanceLogService from "@/services/attendance-log.service";
 import institutionService from "@/services/institution.service";
 import positionService from "@/services/position.service";
 import departmentService from "@/services/department.service";
+import { useExcelExport } from "~/composables/useExcelExport";
 
 definePageMeta({
   layout: "admin",
@@ -107,6 +111,7 @@ const institutionSvc = institutionService();
 const positionSvc = positionService();
 const deptSvc = departmentService();
 const { formatDate } = useFormat();
+const { isExporting, exportToExcel } = useExcelExport();
 
 const isLoading = ref(false);
 const itemPerPage = ref(10);
@@ -128,6 +133,11 @@ const listStatus = ref([
   { id: "holiday", name: "Hari Libur" },
   { id: "incomplete", name: "Belum Pulang" },
 ]);
+
+const getTodayDateString = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 const tableData: any = ref({
   items: [],
@@ -165,6 +175,7 @@ const filterSchema = computed(() => [
     showInModal: true,
     showAboveTable: true,
     clearable: false,
+    default: getTodayDateString(),
   },
   {
     name: "endDate",
@@ -175,6 +186,7 @@ const filterSchema = computed(() => [
     showInModal: true,
     showAboveTable: true,
     clearable: false,
+    default: getTodayDateString(),
   },
   { name: "", type: "text" as const, colMd: 4 },
   {
@@ -248,6 +260,16 @@ const actions = computed(() => [
     color: "#0284c7",
     tooltip: "Detail Presensi",
     emit: "detailItem",
+  },
+]);
+
+const actionToolbars = computed(() => [
+  {
+    key: "exportItem",
+    icon: "mdi-file-excel",
+    color: "#ffffff",
+    tooltip: "Export Excel",
+    emit: "exportItem",
   },
 ]);
 
@@ -332,8 +354,8 @@ async function loadAll() {
       departmentId: departmentId,
       attendanceType: attendanceType,
       status: status,
-      startDate: startDate,
-      endDate: endDate,
+      startDate: startDate ? startDate : getTodayDateString(),
+      endDate: endDate ? endDate : getTodayDateString(),
     })
     .then((res: any) => {
       isLoading.value = false;
@@ -345,6 +367,62 @@ async function loadAll() {
     .catch(() => {
       isLoading.value = false;
     });
+}
+
+async function exportItem() {
+  const { q, sortBy, sortType, institutionId, positionId, departmentId, attendanceType, status, startDate, endDate } = route.query;
+
+  const response: any = await logSvc.retrieve({
+    q: q,
+    pageSize: 1,
+    pageNumber: 1,
+    sortBy: sortBy,
+    sortType: sortType,
+    institutionId: institutionId,
+    positionId: positionId,
+    departmentId: departmentId,
+    attendanceType: attendanceType,
+    status: status,
+    startDate: startDate ? startDate : getTodayDateString(),
+    endDate: endDate ? endDate : getTodayDateString(),
+    ignorePaging: true,
+  });
+
+  const items = response.data?.items || response.data || [];
+
+  const data = items.map((item: any) => ({
+    attendanceDate: formatDateOnly(item.attendanceDate),
+    personNip: item.personNip || "-",
+    personName: item.personName || "-",
+    institutionName: item.institutionName || "-",
+    checkinTime: formatTimeOnly(item.checkinTime),
+    checkoutTime: formatTimeOnly(item.checkoutTime),
+    attendanceType: parseAttendanceType(item.attendanceType),
+    lateMinutes: formatMinutes(item.lateMinutes),
+    earlyLeaveMinutes: formatMinutes(item.earlyLeaveMinutes),
+    status: parseStatus(item.status, item.checkoutTime),
+  }));
+
+  await exportToExcel({
+    data,
+    filename: pageTitle,
+    sheetName: pageTitle,
+    headerOptions: {
+      subtitle: pageTitle,
+    },
+    columns: [
+      { header: "Tanggal", key: "attendanceDate", width: 15 },
+      { header: "NIP", key: "personNip", width: 20 },
+      { header: "Nama", key: "personName", width: 30 },
+      { header: "Institusi", key: "institutionName", width: 25 },
+      { header: "Masuk", key: "checkinTime", width: 12 },
+      { header: "Pulang", key: "checkoutTime", width: 12 },
+      { header: "Jenis Kehadiran", key: "attendanceType", width: 20 },
+      { header: "Terlambat", key: "lateMinutes", width: 15 },
+      { header: "Pulang Cepat", key: "earlyLeaveMinutes", width: 15 },
+      { header: "Status", key: "status", width: 15 },
+    ],
+  });
 }
 
 // Maps Presensi Modal Component Logic

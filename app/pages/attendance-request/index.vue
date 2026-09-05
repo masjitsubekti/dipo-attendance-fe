@@ -180,6 +180,11 @@ const statusVariant = (st: string): "warning" | "success" | "danger" | "default"
   return map[st] || "default";
 };
 
+const getTodayDateString = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 const tableData: any = ref({
   items: [],
   meta: {
@@ -217,6 +222,7 @@ const filterSchema = computed(() => [
     showInModal: true,
     showAboveTable: true,
     clearable: false,
+    default: getTodayDateString(),
   },
   {
     name: "endDate",
@@ -227,6 +233,7 @@ const filterSchema = computed(() => [
     showInModal: true,
     showAboveTable: true,
     clearable: false,
+    default: getTodayDateString(),
   },
   { name: "", type: "text" as const, colMd: 4 },
   {
@@ -431,8 +438,8 @@ async function loadAll() {
       departmentId: departmentId,
       attendanceTypeId: attendanceTypeId,
       status: status,
-      startDate: startDate,
-      endDate: endDate,
+      startDate: startDate ? startDate : getTodayDateString(),
+      endDate: endDate ? endDate : getTodayDateString(),
     })
     .then((res: any) => {
       tableData.value = {
@@ -519,8 +526,8 @@ async function exportItem() {
     departmentId: departmentId,
     attendanceTypeId: attendanceTypeId,
     status: status,
-    startDate: startDate,
-    endDate: endDate,
+    startDate: startDate ? startDate : getTodayDateString(),
+    endDate: endDate ? endDate : getTodayDateString(),
     ignorePaging: true,
   });
 

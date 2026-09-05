@@ -9,7 +9,7 @@
     <div class="bg-white dark:bg-slate-800 rounded-sm card print:hidden">
       <!-- Header Bar -->
       <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-1 bg-primary-500 rounded-t-sm">
-        <h2 class="text-lg font-semibold text-white">Laporan Rekap Presensi</h2>
+        <h2 class="text-lg font-semibold text-white">Laporan Presensi Pegawai</h2>
         <div class="flex items-center gap-1">
           <UiIconButton
             icon="mdi-refresh"

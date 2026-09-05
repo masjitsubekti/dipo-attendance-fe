@@ -9,8 +9,15 @@ const reportService = () => {
     });
   }
 
+  async function getEmployeeSummary(params?: any) {
+    return api.get("/report/employee-summary", {
+      params,
+    });
+  }
+
   return {
     getEmployeeRecap,
+    getEmployeeSummary,
   };
 };
 

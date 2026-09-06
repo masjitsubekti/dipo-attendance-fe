@@ -80,7 +80,7 @@ const close = () => {
 };
 
 const selectItem = (item: DropdownItem) => {
-  if (item.divider) return;
+  if (item.divider || item.disabled) return;
   emit("select", item);
   close();
 };
@@ -193,9 +193,12 @@ onMounted(() => {
               v-else
               :href="getItemHref(item)"
               :target="getItemTarget(item)"
+              :disabled="item.disabled"
               :class="[
                 'w-full flex items-center gap-3 px-4 py-2 text-sm text-left transition-colors',
-                item.danger
+                item.disabled
+                  ? 'opacity-40 cursor-not-allowed pointer-events-none'
+                  : item.danger
                   ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
                   : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700',
               ]"

@@ -498,10 +498,10 @@ function goToLeaveForm() {
 }
 
 function goToLeaveRequests() {
-  router.push("/attendance-request");
+  router.push("/attendance-request/employee");
 }
 
 function goToAttendanceHistory() {
-  router.push("/attendance/history");
+  router.push("/attendance-history");
 }
 </script>

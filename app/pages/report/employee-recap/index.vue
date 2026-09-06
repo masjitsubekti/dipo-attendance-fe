@@ -338,8 +338,8 @@
           <!-- Column 4: Abbreviations LBN, CBR, CTH, SK -->
           <div class="space-y-1.5">
             <div class="flex"><span class="w-12 font-bold">LBN</span><span>: LIBNAS</span></div>
-            <div class="flex"><span class="w-12 font-bold">CBR</span><span>: CUTI BERSALIN</span></div>
-            <div class="flex"><span class="w-12 font-bold">CTH</span><span>: CUTI TAHUNAN</span></div>
+            <div class="flex"><span class="w-12 font-bold">CM</span><span>: CUTI MELAHIRKAN</span></div>
+            <div class="flex"><span class="w-12 font-bold">CT</span><span>: CUTI TAHUNAN</span></div>
             <div class="flex"><span class="w-12 font-bold">SK</span><span>: SAKIT</span></div>
           </div>
         </div>
@@ -520,7 +520,8 @@ async function fetchReport() {
 function getKeteranganStyle(row: any) {
   const styleMap: Record<string, { bg: string; text: string }> = {
     libur: { bg: '#800080', text: '#ffffff' },        // Purple
-    izin: { bg: '#00b050', text: '#ffffff' },         // Green
+    izin: { bg: '#00b050', text: '#ffffff' },         // Green (IJIN/CUTI)
+    cuti: { bg: '#00b050', text: '#ffffff' },         // Green (IJIN/CUTI)
     sakit: { bg: '#92d050', text: '#000000' },        // Light Green
     dinas: { bg: '#0070c0', text: '#ffffff' },        // Blue
     peringatan: { bg: '#ffc000', text: '#000000' },   // Yellow
@@ -530,13 +531,38 @@ function getKeteranganStyle(row: any) {
     alpha: { bg: '#ed7d31', text: '#ffffff' },        // Orange
   };
 
-  const style = styleMap[row.categoryClass];
-  if (!style) return {};
+  const cat = String(row?.categoryClass || '').toLowerCase();
+  const ket = String(row?.keterangan || '').trim().toUpperCase();
 
-  return {
-    backgroundColor: style.bg,
-    color: style.text,
-  };
+  // 1. Check styleMap by categoryClass
+  if (styleMap[cat]) {
+    return {
+      backgroundColor: styleMap[cat].bg,
+      color: styleMap[cat].text,
+    };
+  }
+
+  // 2. Fallback check by keterangan short code
+  if (['CT', 'CTH', 'CM', 'CBR', 'I', 'WFH', 'IZIN', 'CUTI'].includes(ket)) {
+    return { backgroundColor: '#00b050', color: '#ffffff' };
+  }
+  if (['SK', 'SAKIT'].includes(ket)) {
+    return { backgroundColor: '#92d050', color: '#000000' };
+  }
+  if (['DL', 'DLK', 'DINAS'].includes(ket)) {
+    return { backgroundColor: '#0070c0', color: '#ffffff' };
+  }
+  if (['LIBUR', 'LBN', 'LIBNAS'].includes(ket)) {
+    return { backgroundColor: '#800080', color: '#ffffff' };
+  }
+  if (['M', 'MANGKIR'].includes(ket)) {
+    return { backgroundColor: '#ff66cc', color: '#000000' };
+  }
+  if (['A', 'ALPHA'].includes(ket)) {
+    return { backgroundColor: '#ed7d31', color: '#ffffff' };
+  }
+
+  return {};
 }
 
 async function handlePrint() {

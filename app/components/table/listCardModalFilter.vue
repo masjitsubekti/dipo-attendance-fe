@@ -1,37 +1,73 @@
 <template>
-  <div :class="['bg-white dark:bg-slate-800 rounded-sm overflow-hidden', elevationClass]">
+  <div :class="['bg-transparent md:bg-white dark:md:bg-slate-800 rounded-none md:rounded-2xl border-0 md:border border-slate-200/80 dark:border-slate-700/80 overflow-hidden shadow-none md:shadow-xs', elevationClass]">
     <!-- Header Bar -->
-    <div v-if="showHeader" :class="['flex flex-wrap items-center justify-between gap-3 px-5 py-1', headerClass]">
-      <h2 class="text-lg font-semibold text-white">{{ title }}</h2>
-      <div class="flex items-center gap-1">
+    <div
+      v-if="showHeader"
+      :class="[
+        'flex items-center justify-between gap-2 sm:gap-4 transition-colors',
+        'bg-transparent text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-700/60 pb-3 mb-3 px-1 md:px-5 md:py-3.5 md:border-b-0 md:mb-0 md:text-white',
+        desktopHeaderClass
+      ]"
+    >
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center gap-2">
+          <h2 class="text-base sm:text-lg font-bold tracking-tight truncate md:text-white">
+            {{ title }}
+          </h2>
+          <slot name="titleBadge" />
+        </div>
+        <p v-if="subtitle" class="text-xs text-slate-500 dark:text-slate-400 md:text-white/80 mt-0.5 truncate">
+          {{ subtitle }}
+        </p>
+      </div>
+
+      <div class="flex items-center gap-1.5 shrink-0">
         <ClientOnly>
           <template v-for="action in validActions(actionToolbars, {})" :key="action.key || action.emit">
+            <UiButton
+              v-if="action.label"
+              size="sm"
+              :color="action.color || 'primary'"
+              variant="filled"
+              :to="resolveActionTo(action, {})"
+              :href="resolveActionHref(action, {})"
+              :target="resolveActionTarget(action)"
+              :loading="action.key ? actionLoading?.[action.key] : false"
+              class="!font-semibold cursor-pointer"
+              @click="(e) => handleToolbarClick(action, e)"
+            >
+              <i v-if="action.icon" :class="['mdi', action.icon, 'mr-1.5']"></i>
+              <span>{{ action.label }}</span>
+            </UiButton>
             <UiIconButton
+              v-else
               :icon="action.icon || 'mdi-help'"
               :tooltip="action.tooltip"
-              :color="action.color"
+              :color="action.color || 'inherit'"
               :to="resolveActionTo(action, {})"
               :href="resolveActionHref(action, {})"
               :target="resolveActionTarget(action)"
               :loading="action.key ? actionLoading?.[action.key] : false"
               variant="ghost"
-              size="lg"
+              size="md"
+              class="text-slate-600 dark:text-slate-300 md:text-white hover:bg-black/10 md:hover:bg-white/20"
               @click="(e) => handleToolbarClick(action, e)"
             />
           </template>
         </ClientOnly>
+
         <!-- Filter Button with active count badge -->
         <button
           v-if="hasModalFilters"
           type="button"
-          class="relative w-10 h-10 rounded-xl hover:bg-white/10 flex items-center justify-center transition-colors text-white"
+          class="relative px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 md:border-white/30 bg-white dark:bg-slate-800 md:bg-white/15 hover:bg-slate-50 dark:hover:bg-slate-700/60 md:hover:bg-white/25 text-slate-700 dark:text-slate-200 md:text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
           :title="$t('Filter Data')"
           @click="openModal"
         >
-          <i class="mdi mdi-filter text-xl"></i>
+          <i class="mdi mdi-filter-variant text-sm text-primary-600 dark:text-primary-400 md:text-white"></i>
           <span
             v-if="activeFiltersCount > 0"
-            class="absolute -top-1.5 -right-1.5 min-w-6 h-6 px-1.5 bg-red-500 text-white rounded-full flex items-center justify-center text-[11px] font-bold border-2 border-primary-500"
+            class="min-w-4 h-4 px-1 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold"
           >
             {{ activeFiltersCount }}
           </span>
@@ -40,22 +76,21 @@
         <UiIconButton
           icon="mdi-refresh"
           :tooltip="$t('Muat Ulang')"
-          color="white"
+          color="inherit"
           variant="ghost"
-          size="lg"
+          size="md"
+          class="text-slate-600 dark:text-slate-300 md:text-white hover:bg-black/10 md:hover:bg-white/20"
           @click="handleRefreshItems"
         />
       </div>
     </div>
 
-    <div :class="contentPadding">
+    <div class="p-0 md:p-5 space-y-4">
       <!-- Filters (wrapped in ClientOnly to avoid SSR hydration mismatch) -->
       <ClientOnly>
         <div v-if="aboveTableFilterSchema.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-x-4 gap-y-3 mb-5 auto-rows-max">
           <template v-for="f in aboveTableFilterSchema" :key="f.name">
-            <div 
-              :class="getFilterColClasses(f)"
-            > 
+            <div :class="getFilterColClasses(f)">
               <div class="flex items-center gap-2 w-full">
                 <component
                   :is="componentResolver(f.type)"
@@ -67,18 +102,18 @@
                   @apply="handleApplyFilterField(f)"
                   @update:model-value="(val: any) => handleFilterUpdate(f, val)"
                 >
-                  <template v-if="f.type === 'search' && addAction" #append>  
+                  <template v-if="f.type === 'search' && addAction" #append>
                     <UiIconButton
                       :icon="addAction.icon || 'mdi-plus'"
                       :tooltip="addAction.tooltip"
                       :color="addAction.color || 'primary'"
-                      :to="resolveActionTo(addAction, {})"
-                      :href="resolveActionHref(addAction, {})"
-                      :target="resolveActionTarget(addAction)"
+                      :to="resolveActionTo(addAction!, {})"
+                      :href="resolveActionHref(addAction!, {})"
+                      :target="resolveActionTarget(addAction!)"
                       variant="ghost"
                       rounded="full"
                       size="xl"
-                      @click="(e) => handleToolbarClick(addAction, e)"
+                      @click="(e) => handleToolbarClick(addAction!, e)"
                     />
                   </template>
 
@@ -92,8 +127,8 @@
         </div>
 
         <!-- Active Filters Chips -->
-        <div v-if="activeChips.length > 0" class="flex flex-wrap items-center gap-2 mb-5">
-          <span class="text-sm font-medium text-slate-700 dark:text-slate-400">
+        <div v-if="activeChips.length > 0" class="flex flex-wrap items-center gap-2 mb-4">
+          <span class="text-xs font-semibold text-slate-600 dark:text-slate-400">
             {{ $t('Filter Data') }}:
           </span>
           <UiChip
@@ -101,7 +136,7 @@
             :key="chip.name"
             color="primary"
             variant="outline"
-            size="lg"
+            size="md"
             clearable
             @close="removeFilter(chip.field)"
           >
@@ -109,104 +144,257 @@
           </UiChip>
         </div>
         <template #fallback>
-          <div class="grid grid-cols-12 gap-4 mb-5">
+          <div class="grid grid-cols-12 gap-4 mb-4">
             <div class="col-span-12 md:col-span-8"></div>
             <div class="col-span-12 md:col-span-4">
-              <div class="h-10 bg-gray-100 dark:bg-slate-700 rounded animate-pulse"></div>
+              <div class="h-10 bg-slate-100 dark:bg-slate-700/60 rounded-xl animate-pulse"></div>
             </div>
           </div>
         </template>
       </ClientOnly>
 
-      <!-- Table -->
-      <UiDataTable
-        v-if="showTable"
-        :headers="headers"
-        :items="tableData.items"
-        :loading="loading"
-        :show-actions="actions.length > 0"
-        :start-number="numberInc"
-        :sort-key="sortBy[0]?.key"
-        :sort-order="sortBy[0]?.order"
-        :get-row-class="getRowClass"
-        :row-clickable="!!$attrs.onRowClick"
-        :fit-table="fitTable"
-        @sort="handleDataTableSort"
-        @row-click="handleRowClick"
-      >
-        <template v-if="$slots.header" #header>
-          <slot
-            name="header"
-            :sort-key="sortBy[0]?.key || ''"
-            :sort-order="sortBy[0]?.order || 'desc'"
-            :on-sort="handleDataTableSort"
-          />
-        </template>
+      <!-- Content Area: Dual Mode (Desktop Table + Mobile Cards) -->
+      <div v-if="showTable">
+        <!-- 1. DESKTOP TABLE VIEW (md and up) - Styled like AdminDashboard2.vue -->
+        <div class="hidden md:block overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-700">
+          <table class="w-full text-left border-collapse text-xs sm:text-sm">
+            <thead>
+              <tr class="bg-slate-50 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-100 dark:border-slate-700">
+                <th v-if="showNumber" class="py-3 px-4 w-12 text-center">No.</th>
+                <th
+                  v-for="header in bodyHeaders"
+                  :key="header.key"
+                  :style="{ width: header.width }"
+                  :class="[
+                    'py-3 px-4 font-bold tracking-tight',
+                    header.sortable ? 'cursor-pointer hover:text-primary-600 dark:hover:text-primary-400 select-none' : '',
+                    header.align === 'center' ? 'text-center' : header.align === 'right' ? 'text-right' : 'text-left'
+                  ]"
+                  @click="header.sortable && header.key && handleDataTableSort({ key: header.key, order: sortBy[0]?.key === header.key && sortBy[0]?.order === 'asc' ? 'desc' : 'asc' })"
+                >
+                  <div :class="['flex items-center gap-1', header.align === 'center' ? 'justify-center' : header.align === 'right' ? 'justify-end' : '']">
+                    <span>{{ header.title }}</span>
+                    <i
+                      v-if="header.sortable && header.key"
+                      :class="[
+                        'mdi text-sm opacity-70',
+                        sortBy[0]?.key === header.key
+                          ? (sortBy[0]?.order === 'asc' ? 'mdi-chevron-up text-primary-600' : 'mdi-chevron-down text-primary-600')
+                          : 'mdi-unfold-more-horizontal'
+                      ]"
+                    />
+                  </div>
+                </th>
+              </tr>
+            </thead>
 
-        <!-- Pass through all item.* slots (except actions) -->
-        <template v-for="header in headers.filter(h => h.key !== undefined && h.key !== 'actions')" :key="header.key" #[`item.${header.key}`]="slotProps">
-          <slot :name="`item.${header.key}`" v-bind="slotProps">
-            {{ header.formatter ? header.formatter(slotProps.value) : slotProps.value }}
-          </slot>
-        </template>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-700/60 bg-white dark:bg-slate-800">
+              <!-- Table Loading Skeleton -->
+              <template v-if="showSkeletonLoader">
+                <tr v-for="i in 5" :key="`loading-${i}`" class="animate-pulse">
+                  <td v-if="showNumber" class="py-3 px-4 text-center">
+                    <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-6 mx-auto"></div>
+                  </td>
+                  <td v-for="header in bodyHeaders" :key="header.key" class="py-3 px-4">
+                    <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div>
+                  </td>
+                </tr>
+              </template>
 
-        <!-- Actions column -->
-        <template #item.actions="{ item }">
-          <slot name="item.actions" :item="item">
-            <div v-if="actions.length > 0" class="flex items-center justify-center gap-1.5">
-              <ClientOnly>
-                <template v-if="actionType === 'dropdown'">
-                  <UiDropdown
-                    v-if="validActions(actions, item).length > 0"
-                    :items="getDropdownActions(actions, item)"
-                    @select="(opt) => handleDropdownSelect(opt, item)"
-                    align="left"
-                  >
-                    <template #trigger>
-                      <UiButton
-                        color="secondary"
-                        variant="outline"
-                        size="sm"
-                      >
-                        <span>{{ actionDropdownLabel }}</span>
-                        <i class="mdi mdi-chevron-down text-base ml-1" />
-                      </UiButton>
-                    </template>
-                    <template #item="{ item: opt }">
-                      <div class="flex items-center gap-2">
-                        <i v-if="opt.icon" :class="['mdi', opt.icon, 'text-lg', opt.color]" />
-                        <span>{{ opt.label }}</span>
+              <!-- Table Empty State -->
+              <tr v-else-if="tableData.items.length === 0">
+                <td :colspan="bodyHeaders.length + (showNumber ? 1 : 0)" class="py-8 text-center text-slate-400 dark:text-slate-500">
+                  <div class="flex flex-col items-center justify-center gap-2">
+                    <i class="mdi mdi-database-off text-3xl opacity-60"></i>
+                    <span class="text-xs font-semibold">Data tidak ditemukan</span>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Table Data Rows -->
+              <tr
+                v-else
+                v-for="(item, index) in tableData.items"
+                :key="item.id || index"
+                class="hover:bg-slate-50/80 dark:hover:bg-slate-700/40 transition-colors text-slate-800 dark:text-slate-200"
+                :class="[getRowClass({ item, index }), loading && !showSkeletonLoader ? 'opacity-50 transition-opacity duration-150 pointer-events-none' : '']"
+                @click="handleRowClick(item)"
+              >
+                <!-- Row Number -->
+                <td v-if="showNumber" class="py-3 px-4 text-center font-extrabold text-slate-500 text-xs">
+                  {{ numberInc + index + 1 }}
+                </td>
+
+                <!-- Data Cells -->
+                <td
+                  v-for="header in bodyHeaders"
+                  :key="header.key"
+                  :class="[
+                    'py-3 px-4 text-xs font-medium',
+                    header.align === 'center' ? 'text-center' : header.align === 'right' ? 'text-right' : 'text-left'
+                  ]"
+                >
+                  <slot :name="`item.${header.key}`" :item="item" :value="item[header.key]" :index="index">
+                    <!-- Actions special handling -->
+                    <template v-if="header.key === 'actions'">
+                      <div v-if="actions.length > 0" class="flex items-center justify-center gap-1.5">
+                        <ClientOnly>
+                          <template v-if="actionType === 'dropdown'">
+                            <div v-if="validActions(actions, item).length > 0" @click.stop>
+                              <UiDropdown
+                                :items="getDropdownActions(actions, item)"
+                                align="right"
+                                @select="(opt) => handleDropdownSelect(opt, item)"
+                              >
+                                <template #trigger>
+                                  <UiButton color="secondary" variant="outline" size="xs">
+                                    <span>{{ actionDropdownLabel }}</span>
+                                    <i class="mdi mdi-chevron-down ml-1" />
+                                  </UiButton>
+                                </template>
+                              </UiDropdown>
+                            </div>
+                          </template>
+                          <template v-else>
+                            <template v-for="action in validActions(actions, item)" :key="action.key || action.emit">
+                              <UiIconButton
+                                :icon="action.icon || 'mdi-help'"
+                                :tooltip="action.tooltip"
+                                :color="action.color"
+                                :disabled="resolveActionDisabled(action, item)"
+                                :to="resolveActionTo(action, item)"
+                                :href="resolveActionHref(action, item)"
+                                :target="resolveActionTarget(action)"
+                                size="xs"
+                                rounded="md"
+                                @click="(e) => handleActionClick(action, item, e)"
+                              />
+                            </template>
+                          </template>
+                        </ClientOnly>
                       </div>
                     </template>
-                  </UiDropdown>
-                </template>
-                <template v-else>
-                  <template v-for="action in validActions(actions, item)" :key="action.key || action.emit">
-                    <UiIconButton
-                      :icon="action.icon || 'mdi-help'"
-                      :tooltip="action.tooltip"
-                      :color="action.color"
-                      :to="resolveActionTo(action, item)"
-                      :href="resolveActionHref(action, item)"
-                      :target="resolveActionTarget(action)"
-                      size="sm"
-                      rounded="md"
-                      @click="(e) => handleActionClick(action, item, e)"
-                    />
-                  </template>
-                </template>
-              </ClientOnly>
-            </div>
-          </slot>
-        </template>
+                    <template v-else>
+                      {{ header.formatter ? header.formatter(item[header.key]) : item[header.key] }}
+                    </template>
+                  </slot>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-        <!-- Summary / Tfoot Slot -->
-        <template v-if="$slots.tfoot || $slots.summary" #tfoot="slotProps">
-          <slot name="tfoot" v-bind="slotProps">
-            <slot name="summary" v-bind="slotProps" />
-          </slot>
-        </template>
-      </UiDataTable>
+        <!-- 2. MOBILE CARD VIEW (down to md) -->
+        <div class="block md:hidden space-y-3">
+          <!-- Mobile Loading State -->
+          <template v-if="showSkeletonLoader">
+            <div v-for="i in 3" :key="`mob-loading-${i}`" class="p-4 rounded-xl border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-800 shadow-xs space-y-3 animate-pulse">
+              <div class="flex justify-between items-center">
+                <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/3"></div>
+                <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/4"></div>
+              </div>
+              <div class="space-y-2">
+                <div class="h-3 bg-slate-200 dark:bg-slate-700 rounded w-2/3"></div>
+                <div class="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2"></div>
+              </div>
+            </div>
+          </template>
+
+          <!-- Mobile Empty State -->
+          <div v-else-if="tableData.items.length === 0" class="p-8 text-center rounded-xl border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500">
+            <i class="mdi mdi-database-off text-3xl opacity-60 mb-2 block"></i>
+            <span class="text-xs font-semibold">Data tidak ditemukan</span>
+          </div>
+
+          <!-- Mobile Cards -->
+          <template v-else>
+            <div
+              v-for="(item, index) in tableData.items"
+              :key="item.id || index"
+              class="p-4 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 bg-white dark:bg-slate-800/90 shadow-xs hover:shadow-md transition-all space-y-3"
+              :class="loading && !showSkeletonLoader ? 'opacity-50 transition-opacity duration-150 pointer-events-none' : ''"
+              @click="handleRowClick(item)"
+            >
+              <!-- Slot Override for full Card -->
+              <slot name="card" :item="item" :index="index">
+                <!-- Default Mobile Card Template -->
+                <div class="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-700/60 pb-2.5">
+                  <div class="flex items-center gap-2 min-w-0 flex-1">
+                    <span class="w-6 h-6 rounded-lg bg-primary-100 dark:bg-primary-950/60 text-primary-700 dark:text-primary-300 font-extrabold text-[11px] flex items-center justify-center shrink-0">
+                      {{ numberInc + index + 1 }}
+                    </span>
+                    <div class="min-w-0 font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
+                      <!-- Render primary column slot or title -->
+                      <slot :name="`item.${primaryHeaderKey}`" :item="item" :value="item[primaryHeaderKey]" :index="index">
+                        {{ item[primaryHeaderKey] || item.name || item.personName || 'Detail Data' }}
+                      </slot>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-1.5 shrink-0">
+                    <!-- Render Status badge slot if exists -->
+                    <div v-if="hasHeaderKey('status')">
+                      <slot name="item.status" :item="item" :value="item.status" :index="index">
+                        <UiBadge variant="default" class="text-[10px]">
+                          {{ item.status }}
+                        </UiBadge>
+                      </slot>
+                    </div>
+
+                    <!-- 3-Dots Action Dropdown Menu for Mobile -->
+                    <ClientOnly v-if="actions.length > 0 && validActions(actions, item).length > 0">
+                      <div @click.stop>
+                        <UiDropdown
+                          :items="getDropdownActions(actions, item)"
+                          align="right"
+                          @select="(opt) => handleDropdownSelect(opt, item)"
+                        >
+                          <template #trigger>
+                            <button
+                              type="button"
+                              class="w-7 h-7 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/70 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer"
+                              title="Aksi"
+                            >
+                              <i class="mdi mdi-dots-vertical text-lg" />
+                            </button>
+                          </template>
+                          <template #item="{ item: opt }">
+                            <div class="flex items-center gap-2 text-xs font-semibold py-0.5">
+                              <i v-if="opt.icon" :class="['mdi', opt.icon, 'text-base']" :style="{ color: opt.color }" />
+                              <span>{{ opt.label }}</span>
+                            </div>
+                          </template>
+                        </UiDropdown>
+                      </div>
+                    </ClientOnly>
+                  </div>
+                </div>
+
+                <!-- Card Key-Value Details Grid -->
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <template v-for="header in mobileDetailHeaders" :key="header.key">
+                    <div class="space-y-0.5">
+                      <span class="text-[10px] uppercase tracking-wider font-semibold text-slate-400 dark:text-slate-500 block">
+                        {{ header.title }}
+                      </span>
+                      <div class="font-medium text-slate-800 dark:text-slate-200 break-words">
+                        <slot :name="`item.${header.key}`" :item="item" :value="item[header.key!]" :index="index">
+                          {{ header.formatter ? header.formatter(item[header.key!]) : (item[header.key!] ?? '—') }}
+                        </slot>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+
+                <!-- Card Footer Actions (renders if custom item.actions slot is supplied by parent) -->
+                <div v-if="$slots['item.actions']" class="pt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-end gap-2">
+                  <slot name="item.actions" :item="item" />
+                </div>
+              </slot>
+            </div>
+          </template>
+        </div>
+      </div>
 
       <!-- Below Table / Summary Section Slot -->
       <slot name="belowTable" />
@@ -214,24 +402,24 @@
       <!-- Pagination -->
       <div
         v-if="showPagination"
-        class="flex flex-wrap items-center justify-between gap-4 mt-4"
+        class="flex flex-wrap items-center justify-between gap-4 mt-4 pt-2"
       >
-        <div class="flex items-center gap-2 text-sm text-slate-800 dark:text-slate-200">
+        <div class="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
           <span>{{ $t('Tampilkan') }}</span>
           <select
             v-model="filterLocal.pageSize"
             @change="getItemPerPage(filterLocal.pageSize)"
-            class="px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500/50"
+            class="px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/50"
           >
             <option v-for="opt in itemsPerPageOptions" :key="opt.value" :value="opt.value">
               {{ opt.title }}
             </option>
           </select>
-          <span>{{ $t('Dari') }} {{ tableData.meta.totalItems }} {{ $t('data') }}</span>
+          <span>{{ $t('Dari') }} {{ tableData.meta?.totalItems || 0 }} {{ $t('data') }}</span>
         </div>
         <UiPagination
           :current-page="Number(filterLocal.pageNumber) || 1"
-          :total-items="tableData.meta.totalItems"
+          :total-items="tableData.meta?.totalItems || 0"
           :items-per-page="itemsPerPage"
           @update:current-page="handlePageChanged"
         />
@@ -244,7 +432,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-x-4 gap-y-3 auto-rows-max">
           <template v-for="f in modalFilterSchema" :key="f.name">
             <div :class="getFilterColClasses(f, true)">
-              <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 {{ $t(f.modalLabel || f.label || f.name) }}
               </label>
               <component
@@ -263,24 +451,14 @@
         </div>
       </div>
       <template #footer>
-        <UiButton
-          color="secondary"
-          variant="outline"
-          @click="resetModalFilters"
-        >
+        <UiButton color="secondary" variant="outline" size="sm" @click="resetModalFilters">
           {{ $t('Reset') }}
         </UiButton>
         <div class="flex items-center gap-2 ml-auto">
-          <UiButton
-            color="secondary"
-            @click="showFilterModal = false"
-          >
+          <UiButton color="secondary" size="sm" @click="showFilterModal = false">
             {{ $t('Batal') }}
           </UiButton>
-          <UiButton
-            color="primary"
-            @click="applyModalFilters"
-          >
+          <UiButton color="primary" size="sm" @click="applyModalFilters">
             {{ $t('Terapkan') }}
           </UiButton>
         </div>
@@ -305,6 +483,7 @@ interface Header {
   title: string
   width?: string
   sortable?: boolean
+  align?: 'left' | 'center' | 'right'
   translate?: boolean
   formatter?: (value: any) => string
   rowspan?: number
@@ -342,6 +521,7 @@ interface Action {
   color?: string
   tooltip?: string
   show?: (item: any) => boolean
+  disabled?: boolean | ((item: any) => boolean)
   permission?: string | string[]
   emit?: string
   type?: 'default'
@@ -364,8 +544,10 @@ interface TableData {
 
 interface Props {
   title?: string
+  subtitle?: string
   loading?: boolean
   showHeader?: boolean
+  showNumber?: boolean
   headers: Header[]
   tableData: TableData
   filterSchema?: FilterField[]
@@ -380,10 +562,10 @@ interface Props {
   defaultSortBy?: string
   defaultSortType?: 'asc' | 'desc'
   headerTheme?: 'red' | 'blue' | 'green' | 'purple' | 'orange' | 'slate' | 'primary'
+  headerClass?: string
   elevated?: 'none' | 'sm' | 'md' | 'lg' | 'xl'
   permissionTag?: string
   contentPadding?: string
-  fitTable?: boolean
   showTable?: boolean
   showPagination?: boolean
 }
@@ -392,6 +574,7 @@ const props = withDefaults(defineProps<Props>(), {
   title: '',
   loading: false,
   showHeader: true,
+  showNumber: true,
   headers: () => [],
   tableData: () => ({ items: [], meta: { totalItems: 0 } }),
   filterSchema: () => [],
@@ -405,31 +588,38 @@ const props = withDefaults(defineProps<Props>(), {
   defaultSortType: 'desc',
   headerTheme: 'primary',
   elevated: 'sm',
-  contentPadding: 'p-6',
-  fitTable: true,
+  contentPadding: '',
   showTable: true,
   showPagination: true,
 })
 
-// Header theme classes
-const headerThemeClasses: Record<string, string> = {
-  red: 'bg-red-500',
-  blue: 'bg-blue-500',
-  green: 'bg-green-500',
-  purple: 'bg-purple-500',
-  orange: 'bg-orange-500',
-  slate: 'bg-slate-500',
-  primary: 'bg-primary-500',
+// Header theme classes for desktop view
+const desktopThemeClasses: Record<string, string> = {
+  red: 'md:bg-red-500',
+  blue: 'md:bg-blue-500',
+  green: 'md:bg-green-500',
+  purple: 'md:bg-purple-500',
+  orange: 'md:bg-orange-500',
+  slate: 'md:bg-slate-500',
+  primary: 'md:bg-primary-500',
 }
 
-const headerClass = computed(() => {
-  return headerThemeClasses[props.headerTheme] || headerThemeClasses.primary
+const desktopHeaderClass = computed(() => {
+  if (props.headerClass) {
+    return props.headerClass
+      .split(' ')
+      .filter(Boolean)
+      .map((c) => (c.startsWith('md:') ? c : `md:${c}`))
+      .join(' ')
+  }
+  const theme = props.headerTheme || 'primary'
+  return desktopThemeClasses[theme] || desktopThemeClasses.primary
 })
 
-// Elevation (shadow) classes
+// Elevation classes
 const elevationClasses: Record<string, string> = {
   none: '',
-  sm: 'shadow-sm',
+  sm: 'shadow-xs',
   md: 'shadow-md',
   lg: 'shadow-lg',
   xl: 'shadow-xl',
@@ -449,8 +639,37 @@ const emit = defineEmits<{
 
 const route = useRoute()
 const router = useRouter()
-const slots = useSlots()
 const attrs = useAttrs()
+
+// Delayed loading skeleton state to prevent flickering on fast data loads (< 250ms)
+const showSkeletonLoader = ref(false)
+let loadingTimer: any = null
+const SKELETON_DELAY = 250 // ms threshold
+
+watch(
+  () => props.loading,
+  (isLoading) => {
+    if (isLoading) {
+      if (loadingTimer) clearTimeout(loadingTimer)
+      loadingTimer = setTimeout(() => {
+        if (props.loading) {
+          showSkeletonLoader.value = true
+        }
+      }, SKELETON_DELAY)
+    } else {
+      if (loadingTimer) {
+        clearTimeout(loadingTimer)
+        loadingTimer = null
+      }
+      showSkeletonLoader.value = false
+    }
+  },
+  { immediate: true }
+)
+
+onUnmounted(() => {
+  if (loadingTimer) clearTimeout(loadingTimer)
+})
 
 const emitDynamic = (eventName?: string, ...args: any[]) => {
   if (!eventName) return
@@ -486,6 +705,24 @@ const filterLocal = ref<Record<string, any>>({})
 const tempFilterLocal = ref<Record<string, any>>({})
 const showFilterModal = ref(false)
 
+// Body headers computed (must have key)
+const bodyHeaders = computed(() => {
+  return props.headers.filter((h) => h.key !== undefined) as (Header & { key: string })[]
+})
+
+const primaryHeaderKey = computed(() => {
+  const first = bodyHeaders.value.find((h) => h.key !== 'actions' && h.key !== 'status')
+  return first?.key || 'id'
+})
+
+const mobileDetailHeaders = computed(() => {
+  return bodyHeaders.value.filter((h) => h.key !== 'actions' && h.key !== 'status' && h.key !== primaryHeaderKey.value)
+})
+
+const hasHeaderKey = (k: string) => {
+  return props.headers.some((h) => h.key === k)
+}
+
 // Computed for dynamic filter schema subsets
 const aboveTableFilterSchema = computed(() => {
   return props.filterSchema.filter((f) => {
@@ -505,21 +742,17 @@ const hasModalFilters = computed(() => {
 const activeFiltersCount = computed(() => {
   return modalFilterSchema.value.filter((f) => {
     const val = filterLocal.value[f.name]
-    return val !== null && val !== undefined && val !== ""
+    return val !== null && val !== undefined && val !== ''
   }).length
 })
 
 const getFieldLabel = (f: FilterField) => {
   if (f.label) return f.label
   if (f.modalLabel) return f.modalLabel
-  
   if (f.placeholder) {
     const cleanPlaceholder = f.placeholder.replace(/^(Pilih|Cari|Select|Search)\s+/i, '')
-    if (cleanPlaceholder) {
-      return cleanPlaceholder
-    }
+    if (cleanPlaceholder) return cleanPlaceholder
   }
-  
   const name = f.name || ''
   const cleanName = name.replace(/Id(s)?$/i, '')
   return cleanName.charAt(0).toUpperCase() + cleanName.slice(1)
@@ -528,16 +761,9 @@ const getFieldLabel = (f: FilterField) => {
 const activeChips = computed(() => {
   return modalFilterSchema.value
     .filter((f) => {
-      if (f.showChip) {
-        return false
-      }
-      
-      // Exclude if it is also displayed above the table
+      if (f.showChip) return false
       const isShownAbove = f.showAboveTable !== undefined ? f.showAboveTable : !f.showInModal
-      if (isShownAbove) {
-        return false
-      }
-      
+      if (isShownAbove) return false
       if (!f.name || f.name === 'q' || f.name === 'pageSize' || f.name === 'pageNumber' || f.name === 'sortBy' || f.name === 'sortType' || f.name === 't') {
         return false
       }
@@ -547,17 +773,14 @@ const activeChips = computed(() => {
     .map((f) => {
       const val = filterLocal.value[f.name]
       let displayValue = val
-      
       if (f.type === 'select' || f.type === 'autocomplete') {
         const items = getList(f.items)
         const valKey = f.valueKey || 'value'
         const titleKey = f.textKey || 'label'
-        
         const selectedItem = items.find((item) => {
           const itemVal = item[valKey]
           return itemVal !== undefined && itemVal !== null && String(itemVal) === String(val)
         })
-        
         if (selectedItem) {
           if (typeof titleKey === 'function') {
             displayValue = titleKey(selectedItem)
@@ -566,29 +789,26 @@ const activeChips = computed(() => {
           }
         }
       }
-      
       return {
         name: f.name,
         label: getFieldLabel(f),
         value: val,
         displayValue: displayValue,
-        field: f
+        field: f,
       }
     })
 })
 
 const removeFilter = (field: FilterField) => {
   filterLocal.value[field.name] = null
-  
   if (tempFilterLocal.value && field.name in tempFilterLocal.value) {
     tempFilterLocal.value[field.name] = null
   }
-
   handleApplyFilterField(field)
 }
 
 const numberInc = computed(() => {
-  const number = parseInt(String(filterLocal.value.pageNumber - 1)) * itemsPerPage.value || 0
+  const number = parseInt(String((filterLocal.value.pageNumber || 1) - 1)) * itemsPerPage.value || 0
   return number
 })
 
@@ -625,9 +845,7 @@ const validActions = (arr: Action[], item: any) => {
 }
 
 const resolveActionTo = (action: Action, item: any): string | undefined => {
-  if (typeof action.to === 'function') {
-    return action.to(item)
-  }
+  if (typeof action.to === 'function') return action.to(item)
   return action.to
 }
 
@@ -653,6 +871,11 @@ const resolveActionTarget = (action: Action): string | undefined => {
   return undefined
 }
 
+const resolveActionDisabled = (action: Action, item: any): boolean => {
+  if (typeof action.disabled === 'function') return action.disabled(item)
+  return !!action.disabled
+}
+
 const getDropdownActions = (arr: Action[], item: any): DropdownItem[] => {
   return validActions(arr, item).map((a) => ({
     label: a.label || a.tooltip || a.key || '',
@@ -660,6 +883,7 @@ const getDropdownActions = (arr: Action[], item: any): DropdownItem[] => {
     icon: a.icon,
     color: a.color,
     emit: a.emit,
+    disabled: resolveActionDisabled(a, item),
     to: resolveActionTo(a, item),
     href: resolveActionHref(a, item),
     target: resolveActionTarget(a),
@@ -724,7 +948,7 @@ const resetFilterFromSchema = () => {
     sortType: props.defaultSortType,
     t: Date.now(),
   }
-  
+
   props.filterSchema.forEach((f) => {
     if (!f?.name) return
     base[f.name] = f.hasOwnProperty('default')
@@ -733,7 +957,7 @@ const resetFilterFromSchema = () => {
         ? new Date().toISOString().substring(0, 10)
         : null
   })
-  
+
   filterLocal.value = base
 }
 
@@ -780,7 +1004,6 @@ const colSpanMap: Record<number, string> = {
 const getFilterColClasses = (field: FilterField, isModal = false) => {
   const colMd = isModal ? (field.colModalMd || field.colMd || 6) : (field.colMd || 2)
   const lgClass = colSpanMap[colMd] || 'lg:col-span-2'
-  
   return `col-span-1 sm:col-span-1 ${lgClass}`
 }
 
@@ -809,16 +1032,13 @@ const handleFilterInput = (field: FilterField) => {
   if (field.type === 'select' || field.type === 'autocomplete' || field.type === 'date') {
     return
   }
-
   if (field.debounce === false) {
     return
   }
-
   const isSearchField = field.type === 'search' || field.name === 'q' || !!field.debounce
   if (!isSearchField) {
     return
   }
-
   clearDebounceTimer(field.name)
   const delay = typeof field.debounce === 'number' ? field.debounce : 500
   debounceTimers.value[field.name] = setTimeout(() => {
@@ -828,17 +1048,14 @@ const handleFilterInput = (field: FilterField) => {
 
 const handleApplyFilterField = (field: FilterField) => {
   clearDebounceTimer(field.name)
-
   if (field.resetOnSelect && typeof field.resetOnSelect === 'object') {
     Object.keys(field.resetOnSelect).forEach((k) => {
       filterLocal.value[k] = field.resetOnSelect![k]
     })
   }
-
   if (field.emits) {
     emit(field.emits as any, { [field.name]: filterLocal.value[field.name] })
   }
-
   filterLocal.value.pageNumber = 1
   filterLocal.value.t = Date.now()
   router.replace({ path: route.path, query: filterLocal.value })
@@ -857,7 +1074,6 @@ const applyModalFilters = () => {
   Object.keys(tempFilterLocal.value).forEach((k) => {
     filterLocal.value[k] = tempFilterLocal.value[k]
   })
-  
   filterLocal.value.pageNumber = 1
   filterLocal.value.t = Date.now()
   router.replace({ path: route.path, query: filterLocal.value })
@@ -878,12 +1094,9 @@ const handleRefreshItems = () => {
   filterLocal.value.q = ''
   filterLocal.value.pageNumber = 1
   filterLocal.value.t = Date.now()
-  
-  // Clear modal filters too
   modalFilterSchema.value.forEach((f) => {
     filterLocal.value[f.name] = f.hasOwnProperty('default') ? f.default : null
   })
-  
   router.replace({ path: route.path, query: filterLocal.value })
 }
 
@@ -899,7 +1112,6 @@ const getItemPerPage = (val: number) => {
   router.replace({ path: route.path, query: filterLocal.value })
 }
 
-// Handle sort from UiDataTable component
 const handleDataTableSort = (payload: { key: string; order: 'asc' | 'desc' }) => {
   sortBy.value = [{ key: payload.key, order: payload.order }]
   filterLocal.value.sortBy = payload.key
@@ -917,23 +1129,15 @@ const getList = (name?: string) => {
 const getRowClass = (context: { item: any; index: number }): string => {
   const classes: string[] = []
   const isClickable = typeof props.rowClick === 'function'
-  
-  // Add hover styles
-  classes.push('hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors')
-  
-  // Add clickable cursor
   if (isClickable) {
     classes.push('cursor-pointer')
   }
-  
-  // Add custom row classes from props
   if (props.rowClass) {
     const customClass = props.rowClass(context)
     if (typeof customClass === 'string') {
       classes.push(customClass)
     }
   }
-  
   return classes.join(' ')
 }
 
@@ -944,9 +1148,13 @@ const handleRowClick = (item: any) => {
 }
 
 // Watchers
-watch(() => route.query, () => {
-  emit('fetchData')
-}, { immediate: true })
+watch(
+  () => route.query,
+  () => {
+    emit('fetchData')
+  },
+  { immediate: true },
+)
 
 watch(sortBy, () => {
   const sort = sortBy.value[0]
@@ -957,26 +1165,27 @@ watch(sortBy, () => {
   }
 })
 
-watch(() => props.filterSchema, () => {
-  resetFilterFromSchema()
-}, { immediate: true })
+watch(
+  () => props.filterSchema,
+  () => {
+    resetFilterFromSchema()
+  },
+  { immediate: true },
+)
 
 // Lifecycle
 onMounted(() => {
   resetFilterFromSchema()
-  
+
   if (route.query && Object.keys(route.query).length) {
     const q = route.query
     Object.keys(q).forEach((k) => {
       if (k in filterLocal.value) {
         const schemaField = props.filterSchema.find((f) => f.name === k)
         const value = q[k]
-        
-        // Convert to number for number type, autocomplete, and select if value is numeric
         if (schemaField?.type === 'number') {
           filterLocal.value[k] = Number(value)
         } else if ((schemaField?.type === 'autocomplete' || schemaField?.type === 'select') && value) {
-          // Check if value is numeric string - convert to number to match option ids
           filterLocal.value[k] = !isNaN(Number(value)) ? Number(value) : value
         } else {
           filterLocal.value[k] = value
@@ -997,7 +1206,6 @@ watch(
   (total) => {
     const totalItems = Number(total) || 0
     if (totalItems <= 0) return
-
     const lastPage = Math.max(1, Math.ceil(totalItems / (itemsPerPage.value || 1)))
     if ((Number(filterLocal.value.pageNumber) || 1) > lastPage) {
       handlePageChanged(lastPage)

@@ -97,6 +97,15 @@ const handleClickOutside = (event: MouseEvent) => {
   }
 };
 
+const handleBlur = (event: FocusEvent) => {
+  const relatedTarget = event.relatedTarget as Node | null;
+  if (wrapperRef.value && relatedTarget && wrapperRef.value.contains(relatedTarget)) {
+    return;
+  }
+  isOpen.value = false;
+  veeHandleBlur(event);
+};
+
 onMounted(() => {
   document.addEventListener("click", handleClickOutside, true);
 });
@@ -175,10 +184,68 @@ const handleClear = (event: MouseEvent) => {
   });
 };
 
+const activeIndex = ref(-1);
+const hasKeyboardNavigation = ref(false);
+
+watch(isOpen, (val) => {
+  if (!val) {
+    hasKeyboardNavigation.value = false;
+  }
+});
+
+watch(searchQuery, () => {
+  activeIndex.value = 0;
+  hasKeyboardNavigation.value = true;
+});
+
+const handleKeyDown = (event: KeyboardEvent) => {
+  if (!isOpen.value && event.key !== 'Enter' && event.key !== 'Tab') {
+    isOpen.value = true;
+  }
+
+  if (isOpen.value) {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      hasKeyboardNavigation.value = true;
+      activeIndex.value = Math.min(activeIndex.value + 1, filteredOptions.value.length - 1);
+      scrollToActive();
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      hasKeyboardNavigation.value = true;
+      activeIndex.value = Math.max(activeIndex.value - 1, 0);
+      scrollToActive();
+    } else if (event.key === 'Enter') {
+      if (filteredOptions.value.length > 0 && activeIndex.value >= 0 && activeIndex.value < filteredOptions.value.length) {
+        event.preventDefault();
+        event.stopPropagation();
+        handleSelect(filteredOptions.value[activeIndex.value]);
+      } else {
+        event.preventDefault();
+      }
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      isOpen.value = false;
+    } else if (event.key === 'Tab') {
+      if (hasKeyboardNavigation.value && filteredOptions.value.length > 0 && activeIndex.value >= 0 && activeIndex.value < filteredOptions.value.length) {
+        handleSelect(filteredOptions.value[activeIndex.value]);
+      }
+      isOpen.value = false;
+    }
+  }
+};
+
+const scrollToActive = () => {
+  nextTick(() => {
+    const activeEl = wrapperRef.value?.querySelector(`li:nth-child(${activeIndex.value + 1}) button`);
+    if (activeEl) {
+      activeEl.scrollIntoView({ block: 'nearest' });
+    }
+  });
+};
+
 const toggleDropdown = () => {
   if (props.disabled) return;
   
-  // Validate on close (blur-like)
   if (isOpen.value) {
     veeHandleBlur(new Event('blur'));
   }
@@ -214,6 +281,8 @@ defineExpose({ validate: validateField, reset: resetField, meta });
       <button
         type="button"
         @click="toggleDropdown"
+        @keydown="handleKeyDown"
+        @blur="handleBlur"
         :disabled="isDisabled"
         :class="[
           'w-full flex items-center justify-between rounded-lg border bg-white dark:bg-slate-800 text-left transition-all duration-200 focus:outline-none focus:ring-2',
@@ -232,6 +301,7 @@ defineExpose({ validate: validateField, reset: resetField, meta });
           <button
             v-if="clearable && hasValue && !isDisabled"
             type="button"
+            tabindex="-1"
             class="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
             @click="handleClear"
           >
@@ -257,6 +327,7 @@ defineExpose({ validate: validateField, reset: resetField, meta });
       >
         <div
           v-if="isOpen"
+          tabindex="-1"
           class="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 max-h-60 overflow-hidden flex flex-col"
         >
           <div v-if="searchable" class="p-2 border-b border-slate-100 dark:border-slate-700">
@@ -266,21 +337,25 @@ defineExpose({ validate: validateField, reset: resetField, meta });
               class="w-full px-3 py-2 text-sm rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-slate-900 dark:text-white placeholder:text-slate-400"
               placeholder="Cari..."
               @click.stop
+              @keydown="handleKeyDown"
             />
           </div>
 
-          <ul class="flex-1 overflow-y-auto py-1">
+          <ul tabindex="-1" class="flex-1 overflow-y-auto py-1">
             <li v-if="filteredOptions.length === 0" class="px-4 py-3 text-sm text-slate-500 text-center">
               Tidak ditemukan
             </li>
-            <li v-for="option in filteredOptions" :key="getItemValue(option)">
+            <li v-for="(option, index) in filteredOptions" :key="getItemValue(option)">
               <button
                 type="button"
+                tabindex="-1"
                 @click="handleSelect(option)"
                 :class="[
                   'w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors text-left',
                   fieldValue === getItemValue(option)
                     ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 font-medium'
+                    : index === activeIndex
+                    ? 'bg-slate-100 dark:bg-slate-700/80 text-slate-900 dark:text-white'
                     : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50',
                 ]"
               >

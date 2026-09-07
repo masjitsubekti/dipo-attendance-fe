@@ -7,6 +7,10 @@ definePageMeta({
   layout: "admin",
 });
 
+useHead({
+  title: "Profile"
+});
+
 const authStore = useAuthStore();
 const userSvc = userService();
 const swal = useSwal();
@@ -51,12 +55,11 @@ const displayProfile = ref({
   email: authStore.user?.email || "",
   username: authStore.user?.username || "",
   foto: "",
-  personNumber: "",
-  personnelType: "",
+  nip: "",
+  personStatus: "",
   departmentName: "",
-  companyName: "",
-  workAreaName: "",
-  sectionName: "",
+  institutionName: "",
+  positionName: "",
 });
 
 const passwordForm = ref({
@@ -122,16 +125,10 @@ async function saveProfile() {
     });
 
     displayProfile.value = {
+      ...displayProfile.value,
       name: profileForm.value.name,
       email: profileForm.value.email,
       username: profileForm.value.username,
-      foto: displayProfile.value.foto,
-      personNumber: displayProfile.value.personNumber,
-      personnelType: displayProfile.value.personnelType,
-      departmentName: displayProfile.value.departmentName,
-      companyName: displayProfile.value.companyName,
-      workAreaName: displayProfile.value.workAreaName,
-      sectionName: displayProfile.value.sectionName,
     };
 
     swal.toast("Data berhasil diperbarui", "success");
@@ -305,10 +302,10 @@ onMounted(() => {
             <div class="mt-6 space-y-3 text-left px-4">
               <div
                 class="flex items-center gap-3 text-sm"
-                v-if="displayProfile.personNumber"
+                v-if="displayProfile.nip"
               >
                 <div
-                  class="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center"
+                  class="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0"
                 >
                   <UiIcon
                     name="mdi-card-account-details-outline"
@@ -316,29 +313,20 @@ onMounted(() => {
                     color="info"
                   />
                 </div>
-                <span class="text-slate-600 dark:text-slate-400">{{
-                  displayProfile.personNumber
-                }}</span>
-              </div>
-              <div
-                class="flex items-center gap-3 text-sm"
-                v-if="displayProfile.personnelType"
-              >
-                <div
-                  class="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center"
-                >
-                  <UiIcon name="mdi-file-sign" size="sm" color="primary" />
+                <div class="min-w-0 flex-1">
+                  <p class="text-xs text-slate-600 font-medium">NIP</p>
+                  <p class="text-slate-700 dark:text-slate-200 font-semibold truncate">
+                    {{ displayProfile.nip }}
+                  </p>
                 </div>
-                <span class="text-slate-600 dark:text-slate-400">{{
-                  displayProfile.personnelType
-                }}</span>
               </div>
+
               <div
                 class="flex items-center gap-3 text-sm"
-                v-if="displayProfile.companyName"
+                v-if="displayProfile.institutionName"
               >
                 <div
-                  class="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center"
+                  class="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0"
                 >
                   <UiIcon
                     name="mdi-city-variant-outline"
@@ -346,53 +334,65 @@ onMounted(() => {
                     color="warning"
                   />
                 </div>
-                <span class="text-slate-600 dark:text-slate-400">{{
-                  displayProfile.companyName
-                }}</span>
+                <div class="min-w-0 flex-1">
+                  <p class="text-xs text-slate-600 font-medium">Sekolah</p>
+                  <p class="text-slate-700 dark:text-slate-200 font-semibold truncate">
+                    {{ displayProfile.institutionName }}
+                  </p>
+                </div>
               </div>
+
               <div
                 class="flex items-center gap-3 text-sm"
                 v-if="displayProfile.departmentName"
               >
                 <div
-                  class="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center"
+                  class="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center shrink-0"
                 >
                   <UiIcon name="mdi-domain" size="sm" color="success" />
                 </div>
-                <span class="text-slate-600 dark:text-slate-400">{{
-                  displayProfile.departmentName
-                }}</span>
+                <div class="min-w-0 flex-1">
+                  <p class="text-xs text-slate-600 font-medium">Departemen</p>
+                  <p class="text-slate-700 dark:text-slate-200 font-semibold truncate">
+                    {{ displayProfile.departmentName }}
+                  </p>
+                </div>
               </div>
+
               <div
                 class="flex items-center gap-3 text-sm"
-                v-if="displayProfile.sectionName"
+                v-if="displayProfile.positionName"
               >
                 <div
-                  class="w-8 h-8 rounded-lg bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center"
+                  class="w-8 h-8 rounded-lg bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center shrink-0"
                 >
                   <UiIcon name="mdi-factory" size="sm" color="info" />
                 </div>
-                <span class="text-slate-600 dark:text-slate-400">{{
-                  displayProfile.sectionName
-                }}</span>
+                <div class="min-w-0 flex-1">
+                  <p class="text-xs text-slate-600 font-medium">Jabatan / Posisi</p>
+                  <p class="text-slate-700 dark:text-slate-200 font-semibold truncate">
+                    {{ displayProfile.positionName }}
+                  </p>
+                </div>
               </div>
+
               <div
                 class="flex items-center gap-3 text-sm"
-                v-if="displayProfile.workAreaName"
+                v-if="displayProfile.personStatus"
               >
                 <div
-                  class="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center"
+                  class="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0"
                 >
-                  <UiIcon
-                    name="mdi-briefcase-outline"
-                    size="sm"
-                    color="error"
-                  />
+                  <UiIcon name="mdi-file-sign" size="sm" color="primary" />
                 </div>
-                <span class="text-slate-600 dark:text-slate-400">{{
-                  displayProfile.workAreaName
-                }}</span>
+                <div class="min-w-0 flex-1">
+                  <p class="text-xs text-slate-600 font-medium">Status Pegawai</p>
+                  <p class="text-slate-700 dark:text-slate-200 font-semibold truncate">
+                    {{ displayProfile.personStatus }}
+                  </p>
+                </div>
               </div>
+
             </div>
           </div>
         </UiCard>

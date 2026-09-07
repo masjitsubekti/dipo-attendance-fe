@@ -76,7 +76,7 @@ definePageMeta({
 })
 
 useHead({
-  title: "Login - Sistem Manajemen Sekolah",
+  title: "Login",
 });
 
 const authStore = useAuthStore();
@@ -104,9 +104,8 @@ const handleSubmit = async () => {
     );
   } catch (err: any) {
     const errorMessage =
-      err.data?.data?.message ||
-      err.data?.message ||
-      err.message ||
+      err.data?.error ||
+      err.error ||
       'Gagal masuk. Silakan periksa kembali username dan kata sandi Anda.';
     swal.toast(errorMessage, "error");
   }

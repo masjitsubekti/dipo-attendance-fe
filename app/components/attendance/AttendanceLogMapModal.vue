@@ -7,7 +7,7 @@
   >
     <div class="space-y-4">
       <!-- Modal Header Nav Tabs -->
-      <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+      <div v-if="showMapTab && !hideMapTab" class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
         <div class="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
           <button
             type="button"
@@ -158,8 +158,8 @@
             <i class="mdi mdi-card-account-details-outline text-blue-600"></i> Informasi Presensi
           </h4>
 
-          <div class="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs">
-            <table class="w-full text-xs text-left border-collapse bg-white dark:bg-slate-800">
+          <div class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs">
+            <table class="w-full min-w-[500px] text-xs text-left border-collapse bg-white dark:bg-slate-800">
               <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
                 <tr>
                   <td class="py-2.5 px-4 font-semibold text-slate-700 dark:text-slate-300 bg-slate-50/80 dark:bg-slate-800/80 w-1/4">NIP : </td>
@@ -201,7 +201,7 @@
         </div>
 
         <!-- Footer Action Button -->
-        <div class="flex justify-end pt-2">
+        <div v-if="showMapTab && !hideMapTab" class="flex justify-end pt-2">
           <button
             type="button"
             @click="switchToMapTab"
@@ -241,9 +241,14 @@
 interface Props {
   modelValue: boolean;
   item: any;
+  hideMapTab?: boolean;
+  showMapTab?: boolean;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  hideMapTab: false,
+  showMapTab: true,
+});
 const emit = defineEmits(["update:modelValue"]);
 
 const { formatDate } = useFormat();
@@ -263,11 +268,10 @@ const mapCenter = computed<[number, number]>(() => {
   return [Number(lat), Number(lng)];
 });
 
+const { getFileUrl: resolveFileUrl } = useFileUrl();
+
 const getPhotoUrl = (url: string | null | undefined) => {
-  if (!url) return "";
-  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return url;
-  const cleanPath = url.replace(/^\//, "");
-  return `http://localhost:3333/${cleanPath}`;
+  return resolveFileUrl(url);
 };
 
 const formatDateOnly = (val: any) => (val ? formatDate(val, "DD-MM-YYYY", true) : "—");

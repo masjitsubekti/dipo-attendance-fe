@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * UiAutocompleteFreeText - Autocomplete with free text option creation support
+ * UiAutocompleteLazy - Hybrid Vuetify-style + vee-validate autocomplete with FE Lazy Scroll Pagination
  */
 import { useField } from 'vee-validate';
 
@@ -20,7 +20,7 @@ interface Props {
   itemValue?: string;
   itemTitle?: string | ((item: any) => string);
   rules?: ValidationRule[];
-  loading?: boolean;
+  pageSize?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -34,33 +34,26 @@ const props = withDefaults(defineProps<Props>(), {
   itemValue: 'value',
   itemTitle: 'label',
   rules: () => [],
-  loading: false,
+  pageSize: 20,
 });
 
 const emit = defineEmits<{
   "update:modelValue": [value: string | number | null];
   "change": [option: any | null];
   "search": [query: string];
-  "create-new": [query: string];
 }>();
 
 const isOpen = ref(false);
 const searchQuery = ref("");
 const wrapperRef = ref<HTMLElement | null>(null);
 const inputRef = ref<HTMLInputElement | null>(null);
+const dropdownListRef = ref<HTMLElement | null>(null);
+const displayedCount = ref(props.pageSize);
 
 // Stable field name
 const generatedId = useId();
-const autocompleteId = computed(() => props.id || `autocomplete-${generatedId}`);
-const fieldName = props.name || `autocomplete-${generatedId}`;
-
-// Local temporary options list
-const tempOptions = ref<any[]>([]);
-
-// Combined options
-const combinedOptions = computed(() => {
-  return [...props.options, ...tempOptions.value];
-});
+const autocompleteId = computed(() => props.id || `autocomplete-lazy-${generatedId}`);
+const fieldName = props.name || `autocomplete-lazy-${generatedId}`;
 
 // Validation function
 const validateWithRules = (value: any): boolean | string => {
@@ -94,14 +87,8 @@ watch(() => props.modelValue, (newVal) => {
   }
 }, { immediate: true });
 
-// Sync fieldValue -> modelValue & cleanup temporary options on change
-watch(fieldValue, (newVal, oldVal) => {
-  if (oldVal && oldVal !== newVal) {
-    const idx = tempOptions.value.findIndex(opt => getItemValue(opt) === oldVal);
-    if (idx > -1) {
-      tempOptions.value.splice(idx, 1);
-    }
-  }
+// Sync fieldValue -> modelValue
+watch(fieldValue, (newVal) => {
   if (newVal !== props.modelValue) {
     emit('update:modelValue', newVal);
   }
@@ -135,84 +122,88 @@ const getItemValue = (option: any) => {
 
 const getItemTitle = (option: any) => {
   if (typeof option === 'object' && option !== null) {
-    if (option.isTemp && option._tempTitle !== undefined) {
-      return option._tempTitle;
-    }
     if (typeof props.itemTitle === 'function') {
       return props.itemTitle(option);
     }
     return option[props.itemTitle];
   }
-  return String(option);
+  return String(option || "");
 };
+
+// Selected option
+const selectedOption = computed(() => {
+  return props.options.find((opt) => getItemValue(opt) === fieldValue.value) || null;
+});
 
 // Filtered options
 const filteredOptions = computed(() => {
-  if (!searchQuery.value) return combinedOptions.value;
+  if (!searchQuery.value) return props.options;
   
   if (selectedOption.value && searchQuery.value === getItemTitle(selectedOption.value)) {
-    return combinedOptions.value;
+    return props.options;
   }
   
-  const query = searchQuery.value.toLowerCase();
-  return combinedOptions.value.filter((option) =>
+  const query = searchQuery.value.toLowerCase().trim();
+  return props.options.filter((option) =>
     getItemTitle(option).toLowerCase().includes(query)
   );
 });
 
-// Scroll to selected on open
-watch(isOpen, async (val) => {
-  if (val && fieldValue.value) {
-    await nextTick();
-    const selectedButton = wrapperRef.value?.querySelector('button[data-selected="true"]');
-    selectedButton?.scrollIntoView({ block: 'nearest' });
-  }
+// Displayed options (sliced for lazy loading)
+const displayedOptions = computed(() => {
+  return filteredOptions.value.slice(0, displayedCount.value);
 });
 
-// Selected option
-const selectedOption = computed(() => {
-  return combinedOptions.value.find((opt) => getItemValue(opt) === fieldValue.value) || null;
-});
-
-// Computed properties to check exact match and show create option
-const hasExactMatch = computed(() => {
-  if (!searchQuery.value) return true;
-  const query = searchQuery.value.toLowerCase().trim();
-  return combinedOptions.value.some((option) =>
-    getItemTitle(option).toLowerCase().trim() === query
-  );
-});
-
-const showCreateOption = computed(() => {
-  return !!searchQuery.value.trim() && !hasExactMatch.value;
-});
-
-// Sync search query with selected value - watch both fieldValue and combinedOptions
-watch([() => fieldValue.value, combinedOptions], ([newVal]) => {
-  if (newVal) {
-    const selected = combinedOptions.value.find((opt: any) => getItemValue(opt) === newVal);
+// Sync search query with selected value - watch both fieldValue and options
+watch([() => fieldValue.value, () => props.options], ([newVal, options]) => {
+  if (newVal && options.length > 0) {
+    const selected = options.find((opt: any) => getItemValue(opt) === newVal);
     if (selected) {
       searchQuery.value = getItemTitle(selected);
-    } else if (typeof newVal === 'string') {
-      // Auto-create a temporary option when selected externally (e.g. from AWB Scan)
-      const tempItem: Record<string, any> = {
-        [props.itemValue]: newVal,
-        _tempTitle: newVal,
-        isTemp: true,
-      };
-      if (typeof props.itemTitle === 'string') {
-        tempItem[props.itemTitle] = newVal;
-      }
-      tempOptions.value.push(tempItem);
-      searchQuery.value = newVal;
     }
-  } else {
+  } else if (!newVal) {
     searchQuery.value = "";
   }
 }, { immediate: true });
 
+// Reset display count and scroll position on query change
+watch(searchQuery, () => {
+  if (dropdownListRef.value) {
+    dropdownListRef.value.scrollTop = 0;
+  }
+  displayedCount.value = props.pageSize;
+  activeIndex.value = 0;
+});
+
+// Selected index in filteredOptions
+const selectedIndex = computed(() => {
+  if (!fieldValue.value || filteredOptions.value.length === 0) return -1;
+  return filteredOptions.value.findIndex((opt) => getItemValue(opt) === fieldValue.value);
+});
+
+// Scroll to selected on open
+watch(isOpen, async (val) => {
+  if (val) {
+    if (selectedIndex.value >= 0) {
+      displayedCount.value = Math.max(props.pageSize, selectedIndex.value + 1);
+      activeIndex.value = selectedIndex.value;
+      await nextTick();
+      const selectedButton = wrapperRef.value?.querySelector('button[data-selected="true"]');
+      if (selectedButton) {
+        selectedButton.scrollIntoView({ block: 'nearest' });
+      }
+    } else {
+      displayedCount.value = props.pageSize;
+      activeIndex.value = 0;
+    }
+  }
+});
+
 const handleInput = (event: Event) => {
   const query = (event.target as HTMLInputElement).value;
+  if (dropdownListRef.value) {
+    dropdownListRef.value.scrollTop = 0;
+  }
   searchQuery.value = query;
   isOpen.value = true;
   hasKeyboardNavigation.value = true;
@@ -238,102 +229,6 @@ const handleSelect = (option: any) => {
   searchQuery.value = getItemTitle(option);
 };
 
-const handleCreateItem = () => {
-  const query = searchQuery.value.trim();
-  if (query) {
-    const matched = combinedOptions.value.find(
-      (opt: any) => getItemTitle(opt).toLowerCase().trim() === query.toLowerCase()
-    );
-    if (matched) {
-      handleSelect(matched);
-    } else {
-      const tempItem: Record<string, any> = {
-        [props.itemValue]: query,
-        _tempTitle: query,
-        isTemp: true,
-      };
-      if (typeof props.itemTitle === 'string') {
-        tempItem[props.itemTitle] = query;
-      }
-      tempOptions.value.push(tempItem);
-      handleSelect(tempItem);
-      emit("create-new", query);
-    }
-  }
-};
-
-const activeIndex = ref(-1);
-const hasKeyboardNavigation = ref(false);
-
-watch(isOpen, (val) => {
-  if (!val) {
-    hasKeyboardNavigation.value = false;
-  }
-});
-
-watch(searchQuery, () => {
-  activeIndex.value = 0;
-});
-
-const handleKeyDown = (event: KeyboardEvent) => {
-  if (!isOpen.value && event.key !== 'Enter' && event.key !== 'Tab') {
-    isOpen.value = true;
-  }
-
-  if (isOpen.value) {
-    const totalOptions = filteredOptions.value.length + (showCreateOption.value ? 1 : 0);
-    
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      hasKeyboardNavigation.value = true;
-      activeIndex.value = Math.min(activeIndex.value + 1, totalOptions - 1);
-      scrollToActive();
-    } else if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      hasKeyboardNavigation.value = true;
-      activeIndex.value = Math.max(activeIndex.value - 1, 0);
-      scrollToActive();
-    } else if (event.key === 'Enter') {
-      if (totalOptions > 0 && activeIndex.value >= 0 && activeIndex.value < totalOptions) {
-        event.preventDefault();
-        event.stopPropagation();
-        if (activeIndex.value < filteredOptions.value.length) {
-          handleSelect(filteredOptions.value[activeIndex.value]);
-        } else {
-          handleCreateItem();
-        }
-      } else if (showCreateOption.value) {
-        event.preventDefault();
-        handleCreateItem();
-      } else {
-        event.preventDefault();
-      }
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      isOpen.value = false;
-    } else if (event.key === 'Tab') {
-      const totalOptions = filteredOptions.value.length + (showCreateOption.value ? 1 : 0);
-      if (hasKeyboardNavigation.value && totalOptions > 0 && activeIndex.value >= 0 && activeIndex.value < totalOptions) {
-        if (activeIndex.value < filteredOptions.value.length) {
-          handleSelect(filteredOptions.value[activeIndex.value]);
-        } else {
-          handleCreateItem();
-        }
-      }
-      isOpen.value = false;
-    }
-  }
-};
-
-const scrollToActive = () => {
-  nextTick(() => {
-    const activeEl = wrapperRef.value?.querySelector(`li:nth-child(${activeIndex.value + 1}) button`);
-    if (activeEl) {
-      activeEl.scrollIntoView({ block: 'nearest' });
-    }
-  });
-};
-
 const handleClear = () => {
   fieldValue.value = null;
   emit("update:modelValue", null);
@@ -341,10 +236,14 @@ const handleClear = () => {
     emit("change", null);
   });
   searchQuery.value = "";
+  displayedCount.value = props.pageSize;
+  if (dropdownListRef.value) {
+    dropdownListRef.value.scrollTop = 0;
+  }
 };
 
 const handleFocus = () => {
-  if (!isDisabled.value) {
+  if (!props.disabled) {
     isOpen.value = true;
   }
 };
@@ -359,7 +258,7 @@ const handleBlur = (event: FocusEvent) => {
   veeHandleBlur(event);
   
   if (fieldValue.value) {
-    const selected = combinedOptions.value.find((opt: any) => getItemValue(opt) === fieldValue.value);
+    const selected = props.options.find((opt: any) => getItemValue(opt) === fieldValue.value);
     if (selected) {
       searchQuery.value = getItemTitle(selected);
     } else {
@@ -368,6 +267,75 @@ const handleBlur = (event: FocusEvent) => {
   } else {
     searchQuery.value = "";
   }
+};
+
+// Scroll listener for lazy loading
+const handleScroll = (event: Event) => {
+  const target = event.target as HTMLElement;
+  if (!target) return;
+
+  const isNearBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 20;
+  if (isNearBottom && displayedCount.value < filteredOptions.value.length) {
+    displayedCount.value += props.pageSize;
+  }
+};
+
+const activeIndex = ref(-1);
+const hasKeyboardNavigation = ref(false);
+
+watch(isOpen, (val) => {
+  if (!val) {
+    hasKeyboardNavigation.value = false;
+  }
+});
+
+const handleKeyDown = (event: KeyboardEvent) => {
+  if (!isOpen.value && event.key !== 'Enter' && event.key !== 'Tab') {
+    isOpen.value = true;
+  }
+
+  if (isOpen.value) {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      hasKeyboardNavigation.value = true;
+      const maxIndex = filteredOptions.value.length - 1;
+      activeIndex.value = Math.min(activeIndex.value + 1, maxIndex);
+      if (activeIndex.value >= displayedCount.value) {
+        displayedCount.value = Math.min(activeIndex.value + 10, filteredOptions.value.length);
+      }
+      scrollToActive();
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      hasKeyboardNavigation.value = true;
+      activeIndex.value = Math.max(activeIndex.value - 1, 0);
+      scrollToActive();
+    } else if (event.key === 'Enter') {
+      if (displayedOptions.value.length > 0 && activeIndex.value >= 0 && activeIndex.value < displayedOptions.value.length) {
+        event.preventDefault();
+        event.stopPropagation();
+        handleSelect(displayedOptions.value[activeIndex.value]);
+      } else {
+        event.preventDefault();
+      }
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      isOpen.value = false;
+    } else if (event.key === 'Tab') {
+      if (hasKeyboardNavigation.value && displayedOptions.value.length > 0 && activeIndex.value >= 0 && activeIndex.value < displayedOptions.value.length) {
+        handleSelect(displayedOptions.value[activeIndex.value]);
+      }
+      isOpen.value = false;
+    }
+  }
+};
+
+const scrollToActive = () => {
+  nextTick(() => {
+    const activeEl = wrapperRef.value?.querySelector(`li:nth-child(${activeIndex.value + 1}) button`);
+    if (activeEl) {
+      activeEl.scrollIntoView({ block: 'nearest' });
+    }
+  });
 };
 
 // Size classes
@@ -385,7 +353,7 @@ const formContext = inject<{
   disabled: ComputedRef<boolean>;
 } | null>('uiFormContext', null);
 
-const isDisabled = computed(() => props.disabled || props.loading || formContext?.disabled.value);
+const isDisabled = computed(() => props.disabled || formContext?.disabled.value);
 
 defineExpose({ validate: validateField, reset: resetField, meta });
 </script>
@@ -411,6 +379,7 @@ defineExpose({ validate: validateField, reset: resetField, meta });
             errorMessage 
               ? 'border-red-500 ring-red-500/20 focus:border-red-500 focus:ring-red-500/20' 
               : 'border-slate-300 dark:border-slate-600 focus:border-primary-500 focus:ring-primary-500/20',
+            clearable && fieldValue ? 'pr-16' : 'pr-10'
           ]"
           @input="handleInput"
           @focus="handleFocus"
@@ -418,18 +387,7 @@ defineExpose({ validate: validateField, reset: resetField, meta });
           @keydown="handleKeyDown"
         />
         
-        <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-          <svg
-            v-if="loading"
-            class="animate-spin h-5 w-5 text-slate-400"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-
+        <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
           <button
             v-if="clearable && fieldValue && !isDisabled"
             type="button"
@@ -441,7 +399,6 @@ defineExpose({ validate: validateField, reset: resetField, meta });
           </button>
           
           <svg
-            v-if="!loading"
             class="w-5 h-5 text-slate-400 transition-transform duration-200 pointer-events-none"
             :class="{ 'rotate-180': isOpen }"
             fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
@@ -460,12 +417,14 @@ defineExpose({ validate: validateField, reset: resetField, meta });
         leave-to-class="transform scale-95 opacity-0"
       >
         <div
-          v-if="isOpen && (filteredOptions.length > 0 || showCreateOption)"
+          v-if="isOpen && filteredOptions.length > 0"
+          ref="dropdownListRef"
           tabindex="-1"
           class="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 max-h-60 overflow-y-auto"
+          @scroll="handleScroll"
         >
           <ul class="py-1">
-            <li v-for="(option, index) in filteredOptions" :key="getItemValue(option) || index">
+            <li v-for="(option, index) in displayedOptions" :key="getItemValue(option) || index">
               <button
                 type="button"
                 tabindex="-1"
@@ -485,21 +444,8 @@ defineExpose({ validate: validateField, reset: resetField, meta });
               </button>
             </li>
             
-            <li v-if="showCreateOption" class="border-t border-slate-100 dark:border-slate-700">
-              <button
-                type="button"
-                tabindex="-1"
-                @click="handleCreateItem"
-                :class="[
-                  'w-full flex items-center gap-2 px-4 py-2.5 text-sm transition-colors text-left font-medium',
-                  activeIndex === filteredOptions.length
-                    ? 'bg-slate-100 dark:bg-slate-700/80 text-primary-700 dark:text-primary-300'
-                    : 'text-primary-600 dark:text-primary-400 hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                ]"
-              >
-                <i class="mdi mdi-plus text-lg text-primary-500" />
-                <span>Add "{{ searchQuery }}"</span>
-              </button>
+            <li v-if="displayedCount < filteredOptions.length" class="p-2 text-center text-[11px] text-slate-400">
+              Scroll untuk melihat lebih banyak...
             </li>
           </ul>
         </div>

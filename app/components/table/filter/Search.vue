@@ -56,7 +56,15 @@ const localValue = computed({
           @clear="emit('apply')"
         >
           <template #suffix>
-            <i class="mdi mdi-magnify text-lg" />
+            <button
+              type="button"
+              class="text-slate-400 hover:text-primary-500 transition-colors focus:outline-none cursor-pointer"
+              :disabled="disabled"
+              title="Cari"
+              @click="emit('apply')"
+            >
+              <i class="mdi mdi-magnify text-lg" />
+            </button>
           </template>
         </UiInput>
       </div>

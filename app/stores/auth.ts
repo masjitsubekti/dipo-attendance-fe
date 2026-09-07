@@ -20,6 +20,9 @@ export interface User {
     organizationId?: number | null;
     institutionId?: number | null;
     personId?: number | null;
+    institutionName?: string | null;
+    departmentName?: string | null;
+    positionName?: string | null;
 }
 
 export interface AuthState {

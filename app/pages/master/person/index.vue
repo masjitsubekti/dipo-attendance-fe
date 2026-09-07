@@ -45,7 +45,7 @@ definePageMeta({
   permission: "PERSON.VIEW",
 });
 
-const pageTitle = "Pegawai / Pengajar";
+const pageTitle = "Pegawai";
 
 useHead({
   title: pageTitle,

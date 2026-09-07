@@ -170,6 +170,7 @@ const handleInput = (event: Event) => {
   const query = (event.target as HTMLInputElement).value;
   searchQuery.value = query;
   isOpen.value = true;
+  hasKeyboardNavigation.value = true;
   emit("search", query);
   
   if (query === '' && fieldValue.value) {
@@ -207,6 +208,87 @@ const handleFocus = () => {
   if (!props.disabled) {
     isOpen.value = true;
   }
+};
+
+const handleBlur = (event: FocusEvent) => {
+  // Check if the new focused element is within this component (e.g., clicking a dropdown item)
+  const relatedTarget = event.relatedTarget as Node | null;
+  if (wrapperRef.value && relatedTarget && wrapperRef.value.contains(relatedTarget)) {
+    return;
+  }
+  
+  isOpen.value = false;
+  veeHandleBlur(event);
+  
+  // Revert search query to selected item's title if not selected, or clear it
+  if (fieldValue.value) {
+    const selected = props.options.find((opt: any) => getItemValue(opt) === fieldValue.value);
+    if (selected) {
+      searchQuery.value = getItemTitle(selected);
+    } else {
+      searchQuery.value = "";
+    }
+  } else {
+    searchQuery.value = "";
+  }
+};
+
+const activeIndex = ref(-1);
+const hasKeyboardNavigation = ref(false);
+
+watch(isOpen, (val) => {
+  if (!val) {
+    hasKeyboardNavigation.value = false;
+  }
+});
+
+watch(searchQuery, () => {
+  activeIndex.value = 0;
+});
+
+const handleKeyDown = (event: KeyboardEvent) => {
+  if (!isOpen.value && event.key !== 'Enter' && event.key !== 'Tab') {
+    isOpen.value = true;
+  }
+
+  if (isOpen.value) {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      hasKeyboardNavigation.value = true;
+      activeIndex.value = Math.min(activeIndex.value + 1, filteredOptions.value.length - 1);
+      scrollToActive();
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      hasKeyboardNavigation.value = true;
+      activeIndex.value = Math.max(activeIndex.value - 1, 0);
+      scrollToActive();
+    } else if (event.key === 'Enter') {
+      if (filteredOptions.value.length > 0 && activeIndex.value >= 0 && activeIndex.value < filteredOptions.value.length) {
+        event.preventDefault();
+        event.stopPropagation();
+        handleSelect(filteredOptions.value[activeIndex.value]);
+      } else {
+        event.preventDefault();
+      }
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      isOpen.value = false;
+    } else if (event.key === 'Tab') {
+      if (hasKeyboardNavigation.value && filteredOptions.value.length > 0 && activeIndex.value >= 0 && activeIndex.value < filteredOptions.value.length) {
+        handleSelect(filteredOptions.value[activeIndex.value]);
+      }
+      isOpen.value = false;
+    }
+  }
+};
+
+const scrollToActive = () => {
+  nextTick(() => {
+    const activeEl = wrapperRef.value?.querySelector(`li:nth-child(${activeIndex.value + 1}) button`);
+    if (activeEl) {
+      activeEl.scrollIntoView({ block: 'nearest' });
+    }
+  });
 };
 
 // Size classes
@@ -255,12 +337,15 @@ defineExpose({ validate: validateField, reset: resetField, meta });
           ]"
           @input="handleInput"
           @focus="handleFocus"
+          @blur="handleBlur"
+          @keydown="handleKeyDown"
         />
         
         <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
           <button
             v-if="clearable && fieldValue && !isDisabled"
             type="button"
+            tabindex="-1"
             class="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
             @click="handleClear"
           >
@@ -287,18 +372,22 @@ defineExpose({ validate: validateField, reset: resetField, meta });
       >
         <div
           v-if="isOpen && filteredOptions.length > 0"
+          tabindex="-1"
           class="absolute z-50 w-full mt-1 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 max-h-60 overflow-y-auto"
         >
           <ul class="py-1">
             <li v-for="(option, index) in filteredOptions" :key="getItemValue(option) || index">
               <button
                 type="button"
+                tabindex="-1"
                 :data-selected="fieldValue === getItemValue(option)"
                 @click="handleSelect(option)"
                 :class="[
                   'w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors text-left',
                   fieldValue === getItemValue(option)
                     ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 font-medium'
+                    : index === activeIndex
+                    ? 'bg-slate-100 dark:bg-slate-700/80 text-slate-900 dark:text-white'
                     : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50',
                 ]"
               >

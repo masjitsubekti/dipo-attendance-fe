@@ -19,21 +19,7 @@
       <UiForm ref="formRef" class="mt-6">
         <div class="space-y-4">
           <UiRow>
-            <UiCol cols="12" md="6">
-              <UiAutocomplete
-                v-model="form.personId"
-                label="Pegawai / Pengajar"
-                placeholder="Pilih Pegawai"
-                :options="listPerson"
-                item-value="id"
-                :item-title="item => `${item.nip} - ${item.name}`"
-                required
-                :rules="[(v: any) => !!v || 'Pegawai wajib dipilih']"
-                clearable
-              />
-            </UiCol>
-
-            <UiCol cols="12" md="6">
+            <UiCol cols="12" md="12">
               <UiAutocomplete
                 v-model="form.attendanceTypeId"
                 label="Jenis Presensi / Izin / Dinas"
@@ -158,14 +144,14 @@
 
 <script setup lang="ts">
 import attendanceRequestService from "@/services/attendance-request.service";
-import personService from "@/services/person.service";
 import attendanceTypeService from "@/services/attendance-type.service";
+import { useAuthStore } from "~/stores/auth";
 import { useSwal } from "~/composables/useSwal";
 import { useFormat } from "~/composables/useFormat";
 
 definePageMeta({
   layout: "admin",
-  permission: "PERSON_LEAVE.VIEW",
+  permission: "ATTENDANCE_REQUEST.VIEW",
 });
 
 const pageTitle = "Form Pengajuan Izin";
@@ -177,9 +163,9 @@ useHead({
 const route = useRoute();
 const router = useRouter();
 const swal = useSwal();
+const authStore = useAuthStore();
 const { formatDate } = useFormat();
 const attendanceRequestSvc = attendanceRequestService();
-const personSvc = personService();
 const attendanceTypeSvc = attendanceTypeService();
 
 const isLoadingSave = ref(false);
@@ -187,7 +173,6 @@ const isEditing = computed(() => !!route.query.id);
 const formRef = ref<{ validate: () => Promise<boolean> } | null>(null);
 const uploadedFile = ref<File | File[] | null>(null);
 
-const listPerson: any = ref([]);
 const listAttendanceType: any = ref([]);
 
 const listDurationType = [
@@ -197,8 +182,7 @@ const listDurationType = [
 
 const breadcrumbs = computed(() => [
   { label: "Dashboard", to: "/" },
-  { label: "Kehadiran & Izin" },
-  { label: "Pengajuan Izin", to: "/attendance-request" },
+  { label: "Pengajuan Izin", to: "/app/attendance-request" },
   { label: isEditing.value ? "Ubah" : "Tambah" },
 ]);
 
@@ -225,16 +209,14 @@ onMounted(async () => {
   }
 });
 
+function getPersonId() {
+  return form.value.personId || authStore.user?.personId || (authStore.user as any)?.person?.id || (authStore.user as any)?.personId;
+}
+
 async function loadOptions() {
-  await Promise.all([
-    personSvc.retrieve({ pageSize: 1000, ignorePaging: true }).then((res: any) => {
-      if (res.data?.items) listPerson.value = res.data.items;
-      else if (Array.isArray(res.data)) listPerson.value = res.data;
-    }).catch(() => {}),
-    attendanceTypeSvc.retrieveAll({ category: 'leave,time_off,duty,absence' }).then((res: any) => {
-      if (res.data) listAttendanceType.value = res.data;
-    }).catch(() => {}),
-  ]);
+  await attendanceTypeSvc.retrieveAll({ category: 'leave,time_off,duty,absence' }).then((res: any) => {
+    if (res.data) listAttendanceType.value = res.data;
+  }).catch(() => {});
 }
 
 async function loadData(id: any) {
@@ -243,6 +225,7 @@ async function loadData(id: any) {
       const item = res.data;
       form.value = {
         ...item,
+        personId: item.personId ?? item.person_id ?? getPersonId(),
         startDate: item.startDate ? formatDate(item.startDate, 'YYYY-MM-DD') : "",
         endDate: item.endDate ? formatDate(item.endDate, 'YYYY-MM-DD') : "",
       };
@@ -263,6 +246,13 @@ function handleFileError(msg: string) {
 async function onSubmit() {
   const isValid = await formRef.value?.validate();
   if (!isValid) return;
+
+  const currentPersonId = getPersonId();
+  if (!currentPersonId) {
+    swal.toast("Data pegawai (personId) tidak ditemukan untuk akun Anda", "warning");
+    return;
+  }
+  form.value.personId = Number(currentPersonId);
 
   let fileObj: File | null = null;
   if (uploadedFile.value) {
@@ -285,7 +275,7 @@ async function onSubmit() {
           : "Pengajuan izin berhasil disimpan",
         "success",
       );
-      router.push("/attendance-request");
+      router.push("/app/attendance-request");
     })
     .catch((err: any) => {
       console.error("Failed to save data", err);

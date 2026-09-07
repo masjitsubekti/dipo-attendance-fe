@@ -196,6 +196,15 @@ const doSubmit = async (action: 'checkin' | 'checkout') => {
   }
 };
 
+// Handle location select change to auto-focus map
+const onLocationChange = (_val?: any) => {
+  nextTick(() => {
+    if (mapComponentRef.value?.fitMapBounds) {
+      mapComponentRef.value.fitMapBounds();
+    }
+  });
+};
+
 // ==================== Lifecycle ====================
 onMounted(async () => {
   updateClock();
@@ -283,6 +292,7 @@ onUnmounted(() => {
             :options="locationOptions"
             item-value="value"
             item-title="label"
+            @change="onLocationChange"
           />
         </div>
 

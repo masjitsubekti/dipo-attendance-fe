@@ -490,18 +490,18 @@ const attendanceButtonText = computed(() => {
 
 // Navigation & Actions
 function goToAttendance() {
-  router.push("/attendance");
+  router.push("/app/attendance");
 }
 
 function goToLeaveForm() {
-  router.push("/attendance-request/form");
+  router.push("/app/attendance-request/form");
 }
 
 function goToLeaveRequests() {
-  router.push("/attendance-request/employee");
+  router.push("/app/attendance-request");
 }
 
 function goToAttendanceHistory() {
-  router.push("/attendance-history");
+  router.push("/app/attendance-history");
 }
 </script>

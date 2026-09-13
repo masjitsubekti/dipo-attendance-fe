@@ -196,7 +196,6 @@ const tableTitle = computed(() => "Data Pengajuan Izin & Cuti");
 
 const breadcrumbs = computed(() => [
   { label: "Dashboard", to: "/" },
-  { label: "Kehadiran & Izin" },
   { label: pageTitle },
 ]);
 

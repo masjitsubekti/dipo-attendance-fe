@@ -236,7 +236,7 @@ onUnmounted(() => {
 
       <!-- Right section: Riwayat Presensi Button with Text -->
       <button
-        @click="router.push('/attendance/history')"
+        @click="router.push('/app/attendance-history')"
         title="Riwayat Presensi"
         class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-xs font-semibold transition-all active:scale-95 border border-blue-200/50 dark:border-blue-800/40 shrink-0"
       >

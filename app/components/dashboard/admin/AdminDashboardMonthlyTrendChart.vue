@@ -7,7 +7,7 @@
             Tren Kehadiran Pegawai Harian
           </h2>
           <p class="text-xs text-slate-500 dark:text-slate-400">
-            Grafik jumlah Hadir Tepat Waktu, Terlambat, dan Absen/Izin secara harian
+            Grafik jumlah Hadir, Terlambat, dan Absen/Izin secara harian
           </p>
         </div>
 

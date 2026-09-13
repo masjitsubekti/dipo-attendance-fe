@@ -50,6 +50,7 @@ const isAdminRole = computed(() => {
   if (
     roleData.includes("HA01") ||
     roleData.includes("HA02") ||
+    roleData.includes("HA05") ||
     userRoleName.includes("ADMIN") ||
     userRoleName.includes("SUPERADMIN") ||
     userRoleName.includes("MANAGEMENT")

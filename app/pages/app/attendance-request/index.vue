@@ -15,6 +15,7 @@
       :actions="actions"
       :actionToolbars="actionToolbars"
       :actionLoading="{ exportItem: isExporting }"
+      showMobileDateRangeText
       @fetchData="loadAll"
       @addItem="addItem"
       @editItem="editItem"
@@ -133,9 +134,9 @@ const getTodayDateString = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-const getFirstDayOfYearString = () => {
+const getFirstDayOfMonthString = () => {
   const d = new Date();
-  return `${d.getFullYear()}-01-01`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 };
 
 const tableData: any = ref({
@@ -156,7 +157,7 @@ const headers = computed(() => [
   { key: "endDate", title: "Selesai", sortable: true },
   { key: "reason", title: "Keterangan & Lampiran", sortable: false },
   { key: "status", title: "Status", align: "center" as const, sortable: true },
-  { key: "approvalNote", title: "Catatan Atasan", sortable: false },
+  { key: "approvalNote", title: "Catatan", sortable: false },
   { key: "actions", title: "Aksi", align: "center" as const, width: "10%" },
 ]);
 
@@ -169,8 +170,9 @@ const filterSchema = computed(() => [
     colModalMd: 6,
     showInModal: true,
     showAboveTable: true,
+    hideAboveTableMobile: true,
     clearable: false,
-    default: getTodayDateString(),
+    default: getFirstDayOfMonthString(),
   },
   {
     name: "endDate",
@@ -180,6 +182,7 @@ const filterSchema = computed(() => [
     colModalMd: 6,
     showInModal: true,
     showAboveTable: true,
+    hideAboveTableMobile: true,
     clearable: false,
     default: getTodayDateString(),
   },
@@ -284,7 +287,7 @@ const openDocumentPreview = (path: string | null) => {
 };
 
 const getPersonId = () => {
-  return authStore.user?.personId || (authStore.user as any)?.person?.id || undefined;
+  return authStore.user?.personId || (authStore.user as any)?.person?.id || '-';
 };
 
 onMounted(() => {
@@ -320,7 +323,7 @@ async function loadAll() {
       personId: personId,
       attendanceTypeId: attendanceTypeId,
       status: status,
-      startDate: startDate ? startDate : getFirstDayOfYearString(),
+      startDate: startDate ? startDate : getFirstDayOfMonthString(),
       endDate: endDate ? endDate : getTodayDateString(),
     })
     .then((res: any) => {
@@ -375,7 +378,7 @@ async function exportItem() {
     personId: personId,
     attendanceTypeId: attendanceTypeId,
     status: status,
-    startDate: startDate ? startDate : getFirstDayOfYearString(),
+    startDate: startDate ? startDate : getFirstDayOfMonthString(),
     endDate: endDate ? endDate : getTodayDateString(),
     ignorePaging: true,
   });
@@ -396,7 +399,7 @@ async function exportItem() {
       { header: "Tipe Durasi", key: "durationType", width: 20 },
       { header: "Alasan", key: "reason", width: 40 },
       { header: "Status", key: "status", width: 15 },
-      { header: "Catatan Approval", key: "approvalNote", width: 30 },
+      { header: "Catatan", key: "approvalNote", width: 30 },
     ],
   });
 }

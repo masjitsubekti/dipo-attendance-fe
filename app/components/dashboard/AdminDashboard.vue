@@ -35,17 +35,10 @@
       :comparison-label="comparisonLabel"
     />
 
-    <!-- Main Analytics Charts Section: Monthly Line Trend -->
-    <AdminDashboardMonthlyTrendChart
-      :selected-month-label="selectedMonthLabel"
-      :series="activeTrendSeries"
-      :options="trendChartOptions"
-    />
-
     <!-- Secondary Charts (Department Bar & Status Donut) -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <AdminDashboardDepartmentChart
-        :selected-month-label="selectedMonthLabel"
+        :selected-month-label="dailyPeriodLabel"
         :series="departmentChartSeries"
         :options="departmentChartOptions"
       />
@@ -55,6 +48,13 @@
         :options="statusDonutOptions"
       />
     </div>
+
+     <!-- Main Analytics Charts Section: Monthly Line Trend -->
+    <AdminDashboardMonthlyTrendChart
+      :selected-month-label="selectedMonthLabel"
+      :series="activeTrendSeries"
+      :options="trendChartOptions"
+    />
 
     <!-- Top 10 Pemantauan Keterlambatan Pegawai -->
     <AdminDashboardTopLateTable
@@ -149,6 +149,7 @@ const monthCategories = computed(() => {
 });
 
 // Realtime / API Monthly Trend Arrays
+const apiDailyHadir = ref<number[]>([]);
 const apiDailyOnTime = ref<number[]>([]);
 const apiDailyLate = ref<number[]>([]);
 const apiDailyEarlyLeave = ref<number[]>([]);
@@ -161,7 +162,7 @@ const apiDailyLateMinutes = ref<number[]>([]);
 const monthlyTrendSeriesCounts = computed(() => {
   const count = monthCategories.value.length || 30;
 
-  const onTimeData = apiDailyOnTime.value.length === count ? apiDailyOnTime.value : new Array(count).fill(0);
+  const hadirData = apiDailyHadir.value.length === count ? apiDailyHadir.value : new Array(count).fill(0);
   const lateData = apiDailyLate.value.length === count ? apiDailyLate.value : new Array(count).fill(0);
   const earlyLeaveData = apiDailyEarlyLeave.value.length === count ? apiDailyEarlyLeave.value : new Array(count).fill(0);
   const permitData = apiDailyPermit.value.length === count ? apiDailyPermit.value : new Array(count).fill(0);
@@ -170,7 +171,7 @@ const monthlyTrendSeriesCounts = computed(() => {
   const alphaData = apiDailyAlpha.value.length === count ? apiDailyAlpha.value : new Array(count).fill(0);
 
   return [
-    { name: "Tepat Waktu", data: onTimeData },
+    { name: "Hadir", data: hadirData },
     { name: "Terlambat", data: lateData },
     { name: "Pulang Cepat", data: earlyLeaveData },
     { name: "Izin & Cuti", data: permitData },
@@ -396,6 +397,7 @@ async function loadExecutiveSummary() {
       }
 
       if (monthlyTrend) {
+        apiDailyHadir.value = monthlyTrend.dailyHadir || [];
         apiDailyOnTime.value = monthlyTrend.dailyOnTime || [];
         apiDailyLate.value = monthlyTrend.dailyLate || [];
         apiDailyEarlyLeave.value = monthlyTrend.dailyEarlyLeave || [];
@@ -407,12 +409,19 @@ async function loadExecutiveSummary() {
       }
 
       if (Array.isArray(departmentSummary)) {
-        departmentChartSeries.value = [{
-          name: "Jumlah Pegawai Hadir",
-          data: departmentSummary.map((d: any) => d.presentCount),
-        }];
+        departmentChartSeries.value = [
+          {
+            name: "Hadir",
+            data: departmentSummary.map((d: any) => d.presentCount ?? 0),
+          },
+          {
+            name: "Belum Hadir",
+            data: departmentSummary.map((d: any) => d.pendingCount ?? 0),
+          },
+        ];
         departmentChartOptions.value = {
           ...departmentChartOptions.value,
+          colors: ["#10b981", "#ef4444"],
           xaxis: {
             ...departmentChartOptions.value.xaxis,
             categories: departmentSummary.map((d: any) => d.name),
@@ -431,9 +440,9 @@ async function loadExecutiveSummary() {
   }
 }
 
-// Chart 2: Donut Chart Status Presensi (Akurat Akumulasi Bulanan)
+// Chart 2: Donut Chart Status Presensi (Akumulasi Bulanan)
 const statusDonutSeries = computed(() => {
-  const onTime = apiDailyOnTime.value.reduce((a, b) => a + b, 0);
+  const hadir = apiDailyHadir.value.reduce((a, b) => a + b, 0);
   const late = apiDailyLate.value.reduce((a, b) => a + b, 0);
   const early = apiDailyEarlyLeave.value.reduce((a, b) => a + b, 0);
   const permit = apiDailyPermit.value.reduce((a, b) => a + b, 0);
@@ -441,26 +450,12 @@ const statusDonutSeries = computed(() => {
   const mangkir = apiDailyMangkir.value.reduce((a, b) => a + b, 0);
   const alpha = apiDailyAlpha.value.reduce((a, b) => a + b, 0);
 
-  const totalMonthly = onTime + late + early + permit + duty + mangkir + alpha;
-
-  if (totalMonthly > 0) {
-    return [onTime, late, early, permit, duty, mangkir, alpha];
-  }
-
-  return [
-    metrics.value.onTimeCount,
-    metrics.value.lateCount,
-    metrics.value.earlyLeaveCount,
-    metrics.value.sickCount + metrics.value.leaveCount + metrics.value.permitCount,
-    metrics.value.dutyCount,
-    metrics.value.mangkirCount,
-    metrics.value.alphaCount,
-  ];
+  return [hadir, late, early, permit, duty, mangkir, alpha];
 });
 
 const statusDonutOptions = computed(() => ({
   chart: { fontFamily: "Inter, sans-serif" },
-  labels: ["Tepat Waktu", "Terlambat", "Pulang Cepat", "Izin & Cuti", "Dinas Luar", "Mangkir", "Alpha"],
+  labels: ["Hadir", "Terlambat", "Pulang Cepat", "Izin & Cuti", "Dinas Luar", "Mangkir", "Alpha"],
   colors: ["#10b981", "#f59e0b", "#f97316", "#3b82f6", "#8b5cf6", "#d97706", "#f43f5e"],
   legend: {
     position: "bottom",
@@ -482,25 +477,28 @@ const statusDonutOptions = computed(() => ({
   stroke: { width: 0 },
 }));
 
-// Chart 3: Capaian Kehadiran per Departemen
+// Chart 3: Capaian Kehadiran per Departemen (Stacked Vertical Column Chart)
 const departmentChartSeries = ref<any[]>([]);
 
 const departmentChartOptions = ref({
   chart: {
+    type: "bar",
+    stacked: true,
     fontFamily: "Inter, sans-serif",
     toolbar: { show: false },
   },
-  colors: ["#3b82f6"],
+  colors: ["#10b981", "#ef4444"],
   plotOptions: {
     bar: {
-      borderRadius: 8,
-      columnWidth: "42%",
+      horizontal: false,
+      columnWidth: "45%",
+      borderRadius: 6,
     },
   },
   dataLabels: {
     enabled: true,
-    formatter: (val: number) => val + " Pegawai",
-    style: { fontSize: "11px", colors: ["#fff"] },
+    formatter: (val: number) => (val > 0 ? val : ""),
+    style: { fontSize: "10px", colors: ["#fff"] },
   },
   xaxis: {
     categories: [],
@@ -517,7 +515,20 @@ const departmentChartOptions = ref({
       style: { colors: "#64748b", fontSize: "11px" },
     },
   },
+  legend: {
+    position: "top",
+    horizontalAlign: "right",
+    fontSize: "11px",
+    labels: { colors: "#64748b" },
+  },
   grid: { borderColor: "#e2e8f0", strokeDashArray: 4 },
+  tooltip: {
+    shared: true,
+    intersect: false,
+    y: {
+      formatter: (val: number) => val + " Pegawai",
+    },
+  },
 });
 
 // Top 10 Terlambat Data & Filtering (Loaded from API)

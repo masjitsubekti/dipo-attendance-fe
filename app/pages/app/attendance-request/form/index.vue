@@ -5,15 +5,21 @@
     </div>
 
     <UiCard>
-      <div class="flex items-center gap-3 mb-6">
-        <UiIcon
-          name="mdi-arrow-left"
-          class="text-xl cursor-pointer hover:text-primary-600 transition-colors"
-          @click="handleCancel"
-        />
-        <h2 class="text-2xl font-bold">
-          {{ isEditing ? "Ubah Pengajuan Izin" : "Tambah Pengajuan Izin" }}
-        </h2>
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-3">
+          <UiIconButton
+            icon="mdi-arrow-left"
+            variant="ghost"
+            tooltip="Kembali"
+            size="lg"
+            @click="handleCancel"
+          />
+          <div>
+            <h2 class="text-xl font-bold text-slate-900 dark:text-white">
+              {{ isEditing ? "Ubah Pengajuan Izin" : "Tambah Pengajuan Izin" }}
+            </h2>
+          </div>
+        </div>
       </div>
 
       <UiForm ref="formRef" class="mt-6">

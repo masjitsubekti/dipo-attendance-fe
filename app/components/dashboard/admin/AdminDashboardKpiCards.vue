@@ -28,8 +28,8 @@
 
             <div class="min-w-0 pl-3 text-left">
               <h3 class="flex items-baseline gap-1 text-2xl font-black tracking-tight text-slate-800 dark:text-white 2xl:text-3xl">
-                {{ metrics.onTimeCount }}
-                <span class="text-xs font-bold text-slate-400 dark:text-slate-500">Tepat Waktu</span>
+                {{ metrics.pendingCheckinCount }}
+                <span class="text-xs font-bold text-slate-400 dark:text-slate-500">Belum Hadir</span>
               </h3>
             </div>
           </div>
@@ -85,10 +85,10 @@
         <!-- Footer Breakdown for Card 2 -->
         <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
           <span class="inline-flex items-center gap-1 font-medium">
-            <strong class="text-amber-600 dark:text-amber-400 font-bold">{{ metrics.totalLateHours }}j ({{ metrics.totalLateMinutes }}m)</strong>
+            Telat: <strong class="text-amber-600 dark:text-amber-400 font-bold">{{ formatDuration(metrics.totalLateMinutes) }}</strong>
           </span>
           <span class="inline-flex items-center gap-1 font-medium">
-            <strong class="text-orange-600 dark:text-orange-400 font-bold">{{ metrics.totalEarlyLeaveHours }}j ({{ metrics.totalEarlyLeaveMinutes }}m)</strong>
+            Plg Cepat: <strong class="text-orange-600 dark:text-orange-400 font-bold">{{ formatDuration(metrics.totalEarlyLeaveMinutes) }}</strong>
           </span>
         </div>
       </div>
@@ -213,4 +213,11 @@ defineProps<{
   dailyPeriodLabel: string;
   comparisonLabel: string;
 }>();
+
+function formatDuration(minutes: number = 0): string {
+  const m = Math.max(0, Math.round(minutes || 0));
+  const hrs = Math.floor(m / 60);
+  const mins = m % 60;
+  return `${hrs}j ${mins}m`;
+}
 </script>

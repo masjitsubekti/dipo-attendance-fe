@@ -125,9 +125,12 @@ defineProps<{
 }>();
 
 function formatLateDuration(mins: number): string {
-  const m = Number(mins || 0);
-  const hoursVal = m / 60;
-  const hoursStr = hoursVal % 1 === 0 ? String(hoursVal) : hoursVal.toFixed(1);
-  return `${hoursStr}j (${m}m)`;
+  const m = Math.max(0, Math.round(Number(mins || 0)));
+  const hrs = Math.floor(m / 60);
+  const remainingMins = m % 60;
+  if (hrs > 0) {
+    return remainingMins > 0 ? `${hrs}j ${remainingMins}m` : `${hrs}j`;
+  }
+  return `${remainingMins}m`;
 }
 </script>

@@ -15,6 +15,7 @@
       :actions="actions"
       :actionToolbars="actionToolbars"
       :actionLoading="{ exportItem: isExporting }"
+      showMobileDateRangeText
       @fetchData="loadAll"
       @detailItem="openMapsModal"
       @exportItem="exportItem"
@@ -113,10 +114,10 @@ const listAttendanceType = ref([
 const listStatus = ref([
   { id: "present", name: "Hadir" },
   { id: "late", name: "Terlambat" },
-  { id: "absent", name: "Alpa" },
-  { id: "leave", name: "Izin / Cuti" },
-  { id: "holiday", name: "Hari Libur" },
-  { id: "incomplete", name: "Belum Pulang" },
+  // { id: "absent", name: "Alpa" },
+  // { id: "leave", name: "Izin / Cuti" },
+  // { id: "holiday", name: "Hari Libur" },
+  // { id: "incomplete", name: "Belum Pulang" },
 ]);
 
 const getTodayDateString = () => {
@@ -161,6 +162,7 @@ const filterSchema = computed(() => [
     colModalMd: 6,
     showInModal: true,
     showAboveTable: true,
+    hideAboveTableMobile: true,
     clearable: false,
     default: getFirstDayOfMonthString(),
   },
@@ -172,6 +174,7 @@ const filterSchema = computed(() => [
     colModalMd: 6,
     showInModal: true,
     showAboveTable: true,
+    hideAboveTableMobile: true,
     clearable: false,
     default: getTodayDateString(),
   },
@@ -271,7 +274,7 @@ const getStatusBadgeVariant = (status: string | null, checkoutTime?: any): "succ
 };
 
 const getPersonId = () => {
-  return authStore.user?.personId || (authStore.user as any)?.person?.id || undefined;
+  return authStore.user?.personId || (authStore.user as any)?.person?.id || '-';
 };
 
 async function loadAll() {

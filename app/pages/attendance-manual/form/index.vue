@@ -138,8 +138,9 @@
                 v-model="form.note"
                 label="Catatan Dispensasi"
                 placeholder="Masukkan catatan atau alasan dispensasi"
-                :rows="3"
-                hint="Catatan ini akan tersimpan sebagai riwayat dan audit trail"
+                :rows="2"
+                required
+                :rules="[(v: any) => !!v || 'Wajib diisi']"
               />
             </UiCol>
           </UiRow>
@@ -451,7 +452,6 @@ async function onSubmit() {
 
   if (!isEditing.value && selectedPersons.value.length === 0) {
     swal.toast("Silakan pilih minimal 1 pegawai terlebih dahulu", "warning");
-    showPersonLookup.value = true;
     return;
   }
 

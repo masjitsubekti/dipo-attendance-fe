@@ -1,27 +1,34 @@
 <template>
-  <div :class="['bg-transparent md:bg-white dark:md:bg-slate-800 rounded-none md:rounded-2xl border-0 md:border border-slate-200/80 dark:border-slate-700/80 overflow-hidden shadow-none md:shadow-xs', elevationClass]">
+  <div :class="['bg-transparent md:bg-white dark:md:bg-slate-800 rounded-none md:rounded-sm border-0 md:border border-slate-200/80 dark:border-slate-700/80 overflow-hidden shadow-none', elevationClass ? `md:${elevationClass}` : '']">
     <!-- Header Bar -->
     <div
       v-if="showHeader"
       :class="[
-        'flex items-center justify-between gap-2 sm:gap-4 transition-colors',
-        'bg-transparent text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-700/60 pb-3 mb-3 px-1 md:px-5 md:py-3.5 md:border-b-0 md:mb-0 md:text-white',
+        'flex flex-wrap items-center justify-between gap-3 transition-colors',
+        'bg-transparent text-slate-900 dark:text-white border-b border-slate-200/80 dark:border-slate-700/60 pb-3 mb-3 px-1 md:px-5 md:py-2 md:border-b-0 md:mb-0 md:text-white',
         desktopHeaderClass
       ]"
     >
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2">
-          <h2 class="text-base sm:text-lg font-bold tracking-tight truncate md:text-white">
+          <h2 class="text-base sm:text-lg font-semibold text-slate-900 dark:text-white md:text-white tracking-tight truncate">
             {{ title }}
           </h2>
           <slot name="titleBadge" />
         </div>
-        <p v-if="subtitle" class="text-xs text-slate-500 dark:text-slate-400 md:text-white/80 mt-0.5 truncate">
+        <p v-if="subtitle" class="text-xs text-slate-500 dark:text-slate-400 md:text-white/80 mt-0.5 truncate hidden md:block">
+          {{ subtitle }}
+        </p>
+        <div v-if="hasMobileDateFilter && mobileDateRangeText" class="block md:hidden text-xs font-semibold text-primary-600 dark:text-primary-400 mt-0.5">
+          <i class="mdi mdi-calendar-range text-slate-400 dark:text-slate-500 mr-1"></i>
+          <span>{{ mobileDateRangeText }}</span>
+        </div>
+        <p v-else-if="subtitle" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate block md:hidden">
           {{ subtitle }}
         </p>
       </div>
 
-      <div class="flex items-center gap-1.5 shrink-0">
+      <div class="flex items-center gap-1 shrink-0">
         <ClientOnly>
           <template v-for="action in validActions(actionToolbars, {})" :key="action.key || action.emit">
             <UiButton
@@ -43,14 +50,14 @@
               v-else
               :icon="action.icon || 'mdi-help'"
               :tooltip="action.tooltip"
-              :color="action.color || 'inherit'"
+              :color="action.color"
               :to="resolveActionTo(action, {})"
               :href="resolveActionHref(action, {})"
               :target="resolveActionTarget(action)"
               :loading="action.key ? actionLoading?.[action.key] : false"
               variant="ghost"
-              size="md"
-              class="text-slate-600 dark:text-slate-300 md:text-white hover:bg-black/10 md:hover:bg-white/20"
+              size="lg"
+              class="text-slate-700 dark:text-slate-300 md:text-white hover:bg-slate-100 dark:hover:bg-slate-700/60 md:hover:bg-white/20"
               @click="(e) => handleToolbarClick(action, e)"
             />
           </template>
@@ -60,14 +67,14 @@
         <button
           v-if="hasModalFilters"
           type="button"
-          class="relative px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 md:border-white/30 bg-white dark:bg-slate-800 md:bg-white/15 hover:bg-slate-50 dark:hover:bg-slate-700/60 md:hover:bg-white/25 text-slate-700 dark:text-slate-200 md:text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+          class="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl text-slate-700 dark:text-slate-200 md:text-white hover:bg-slate-100 dark:hover:bg-slate-700/60 md:hover:bg-white/10 flex items-center justify-center transition-colors cursor-pointer"
           :title="$t('Filter Data')"
           @click="openModal"
         >
-          <i class="mdi mdi-filter-variant text-sm text-primary-600 dark:text-primary-400 md:text-white"></i>
+          <i class="mdi mdi-filter text-xl"></i>
           <span
             v-if="activeFiltersCount > 0"
-            class="min-w-4 h-4 px-1 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold"
+            class="absolute top-0 -right-1.5 min-w-5 h-5 px-1 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-white dark:border-slate-800 md:border-primary-500"
           >
             {{ activeFiltersCount }}
           </span>
@@ -78,8 +85,8 @@
           :tooltip="$t('Muat Ulang')"
           color="inherit"
           variant="ghost"
-          size="md"
-          class="text-slate-600 dark:text-slate-300 md:text-white hover:bg-black/10 md:hover:bg-white/20"
+          size="lg"
+          class="text-slate-700 dark:text-slate-300 md:text-white hover:bg-slate-100 dark:hover:bg-slate-700/60 md:hover:bg-white/20"
           @click="handleRefreshItems"
         />
       </div>
@@ -89,8 +96,8 @@
       <!-- Filters (wrapped in ClientOnly to avoid SSR hydration mismatch) -->
       <ClientOnly>
         <div v-if="aboveTableFilterSchema.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-x-4 gap-y-3 mb-5 auto-rows-max">
-          <template v-for="f in aboveTableFilterSchema" :key="f.name">
-            <div :class="getFilterColClasses(f)">
+          <template v-for="f in aboveTableFilterSchema" :key="f.name || f.placeholder">
+            <div :class="[getFilterColClasses(f), isFilterHiddenOnMobile(f) ? 'hidden md:block' : '']">
               <div class="flex items-center gap-2 w-full">
                 <component
                   :is="componentResolver(f.type)"
@@ -221,8 +228,8 @@
                 @click="handleRowClick(item)"
               >
                 <!-- Row Number -->
-                <td v-if="showNumber" class="py-3 px-4 text-center font-extrabold text-slate-500 text-xs">
-                  {{ numberInc + index + 1 }}
+                <td v-if="showNumber" class="py-3 px-4 text-center font-bold text-slate-600 text-xs">
+                  {{ numberInc + index + 1 }}.
                 </td>
 
                 <!-- Data Cells -->
@@ -288,7 +295,7 @@
         <div class="block md:hidden space-y-3">
           <!-- Mobile Loading State -->
           <template v-if="showSkeletonLoader">
-            <div v-for="i in 3" :key="`mob-loading-${i}`" class="p-4 rounded-xl border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-800 shadow-xs space-y-3 animate-pulse">
+            <div v-for="i in 3" :key="`mob-loading-${i}`" class="p-4 card space-y-3 animate-pulse">
               <div class="flex justify-between items-center">
                 <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/3"></div>
                 <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/4"></div>
@@ -301,7 +308,7 @@
           </template>
 
           <!-- Mobile Empty State -->
-          <div v-else-if="tableData.items.length === 0" class="p-8 text-center rounded-xl border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500">
+          <div v-else-if="tableData.items.length === 0" class="p-8 text-center card text-slate-400 dark:text-slate-500">
             <i class="mdi mdi-database-off text-3xl opacity-60 mb-2 block"></i>
             <span class="text-xs font-semibold">Data tidak ditemukan</span>
           </div>
@@ -311,7 +318,7 @@
             <div
               v-for="(item, index) in tableData.items"
               :key="item.id || index"
-              class="p-4 rounded-2xl border border-slate-200/90 dark:border-slate-700/80 bg-white dark:bg-slate-800/90 shadow-xs hover:shadow-md transition-all space-y-3"
+              class="p-4 card-hover space-y-3"
               :class="loading && !showSkeletonLoader ? 'opacity-50 transition-opacity duration-150 pointer-events-none' : ''"
               @click="handleRowClick(item)"
             >
@@ -509,6 +516,7 @@ interface FilterField {
   placeholder?: string
   showInModal?: boolean
   showAboveTable?: boolean
+  hideAboveTableMobile?: boolean
   showChip?: boolean
   debounce?: boolean | number
 }
@@ -568,6 +576,7 @@ interface Props {
   contentPadding?: string
   showTable?: boolean
   showPagination?: boolean
+  showMobileDateRangeText?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -588,9 +597,10 @@ const props = withDefaults(defineProps<Props>(), {
   defaultSortType: 'desc',
   headerTheme: 'primary',
   elevated: 'sm',
-  contentPadding: '',
+  contentPadding: 'p-5 space-y-4',
   showTable: true,
   showPagination: true,
+  showMobileDateRangeText: false,
 })
 
 // Header theme classes for desktop view
@@ -619,7 +629,7 @@ const desktopHeaderClass = computed(() => {
 // Elevation classes
 const elevationClasses: Record<string, string> = {
   none: '',
-  sm: 'shadow-xs',
+  sm: 'shadow-sm',
   md: 'shadow-md',
   lg: 'shadow-lg',
   xl: 'shadow-xl',
@@ -737,6 +747,38 @@ const modalFilterSchema = computed(() => {
 
 const hasModalFilters = computed(() => {
   return modalFilterSchema.value.length > 0
+})
+
+const hasMobileDateFilter = computed(() => {
+  return props.showMobileDateRangeText || props.filterSchema.some((f) => f.hideAboveTableMobile)
+})
+
+const isFilterHiddenOnMobile = (f: FilterField) => {
+  if (!f.name) return true
+  if (f.hideAboveTableMobile) return true
+  if (props.showMobileDateRangeText && (f.type === 'date' || f.name === 'startDate' || f.name === 'endDate' || f.name?.toLowerCase().includes('date'))) return true
+  return false
+}
+
+const mobileDateRangeText = computed(() => {
+  const startField = props.filterSchema.find((f) => f.name === 'startDate' || f.name?.toLowerCase().includes('start'))
+  const endField = props.filterSchema.find((f) => f.name === 'endDate' || f.name?.toLowerCase().includes('end'))
+  
+  const startVal = startField ? filterLocal.value[startField.name] : filterLocal.value.startDate
+  const endVal = endField ? filterLocal.value[endField.name] : filterLocal.value.endDate
+  
+  if (!startVal && !endVal) return ''
+  
+  const formatDateStr = (str?: string) => {
+    if (!str) return '—'
+    const parts = String(str).substring(0, 10).split('-')
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`
+    }
+    return str
+  }
+  
+  return `${formatDateStr(startVal)} - ${formatDateStr(endVal)}`
 })
 
 const activeFiltersCount = computed(() => {

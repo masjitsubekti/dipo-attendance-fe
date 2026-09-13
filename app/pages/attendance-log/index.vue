@@ -11,7 +11,7 @@
       :tableData="tableData"
       :loading="isLoading"
       :filterSchema="filterSchema"
-      :filterList="{ listInstitution, listPosition, listDepartment, listAttendanceType, listStatus }"
+      :filterList="{ listInstitution, listPosition, listDepartment, listAttendanceType, listStatus, listMode }"
       :actions="actions"
       :actionToolbars="actionToolbars"
       :actionLoading="{ exportItem: isExporting }"
@@ -71,6 +71,13 @@
         <span v-else class="text-slate-400 font-mono text-xs">—</span>
       </template>
 
+      <!-- Mode Column (Presensi Mandiri vs Dispensasi) -->
+      <template v-slot:[`item.mode`]="{ value }">
+        <UiBadge :variant="value === 'manual' ? 'warning' : 'info'" size="sm">
+          {{ value === 'manual' ? 'Dispensasi' : 'Presensi' }}
+        </UiBadge>
+      </template>
+
       <!-- Status Column -->
       <template v-slot:[`item.status`]="{ item }">
         <UiBadge :variant="getStatusBadgeVariant(item.status, item.checkoutTime)">
@@ -120,6 +127,11 @@ const listInstitution: any = ref([]);
 const listPosition: any = ref([]);
 const listDepartment: any = ref([]);
 
+const listMode = ref([
+  { id: "auto", name: "Presensi" },
+  { id: "manual", name: "Dispensasi" },
+]);
+
 const listAttendanceType = ref([
   { id: "regular", name: "REGULAR" },
   { id: "teaching", name: "TEACHING" },
@@ -128,10 +140,10 @@ const listAttendanceType = ref([
 const listStatus = ref([
   { id: "present", name: "Hadir" },
   { id: "late", name: "Terlambat" },
-  { id: "absent", name: "Alpa" },
-  { id: "leave", name: "Izin / Cuti" },
-  { id: "holiday", name: "Hari Libur" },
-  { id: "incomplete", name: "Belum Pulang" },
+  // { id: "absent", name: "Alpa" },
+  // { id: "leave", name: "Izin / Cuti" },
+  // { id: "holiday", name: "Hari Libur" },
+  // { id: "incomplete", name: "Belum Pulang" },
 ]);
 
 const getTodayDateString = () => {
@@ -155,13 +167,14 @@ const headers = computed(() => [
   { key: "attendanceDate", title: "Tanggal", sortable: true },
   { key: "personNip", title: "NIP", sortable: true },
   { key: "personName", title: "Nama", sortable: true },
-  { key: "institutionName", title: "Institusi", sortable: true },
+  // { key: "institutionName", title: "Institusi", sortable: true },
   { key: "checkinTime", title: "Masuk", sortable: true, align: "center" },
   { key: "checkoutTime", title: "Pulang", sortable: true, align: "center" },
   { key: "attendanceType", title: "Jenis Kehadiran", sortable: true },
   { key: "lateMinutes", title: "Terlambat", sortable: true, align: "center" },
   { key: "earlyLeaveMinutes", title: "Pulang Cepat", sortable: true, align: "center" },
   { key: "status", title: "Status", sortable: true, align: "center" },
+  { key: "mode", title: "Mode", sortable: true, align: "center" },
   { key: "actions", title: "Aksi", align: "center", width: "6%" },
 ]);
 
@@ -235,6 +248,17 @@ const filterSchema = computed(() => [
     type: "autocomplete" as const,
     items: "listAttendanceType",
     placeholder: "Pilih Kehadiran",
+    valueKey: "id",
+    textKey: "name",
+    colModalMd: 6,
+    showInModal: true,
+  },
+  {
+    name: "mode",
+    modalLabel: "Mode",
+    type: "autocomplete" as const,
+    items: "listMode",
+    placeholder: "Pilih Mode",
     valueKey: "id",
     textKey: "name",
     colModalMd: 6,
@@ -370,7 +394,7 @@ async function loadAll() {
 }
 
 async function exportItem() {
-  const { q, sortBy, sortType, institutionId, positionId, departmentId, attendanceType, status, startDate, endDate } = route.query;
+  const { q, sortBy, sortType, institutionId, positionId, departmentId, attendanceType, status, mode, startDate, endDate } = route.query;
 
   const response: any = await logSvc.retrieve({
     q: q,
@@ -383,6 +407,7 @@ async function exportItem() {
     departmentId: departmentId,
     attendanceType: attendanceType,
     status: status,
+    mode: mode,
     startDate: startDate ? startDate : getTodayDateString(),
     endDate: endDate ? endDate : getTodayDateString(),
     ignorePaging: true,
@@ -400,6 +425,7 @@ async function exportItem() {
     attendanceType: parseAttendanceType(item.attendanceType),
     lateMinutes: formatMinutes(item.lateMinutes),
     earlyLeaveMinutes: formatMinutes(item.earlyLeaveMinutes),
+    mode: item.mode === 'manual' ? 'Dispensasi' : 'Presensi',
     status: parseStatus(item.status, item.checkoutTime),
   }));
 
@@ -420,6 +446,7 @@ async function exportItem() {
       { header: "Jenis Kehadiran", key: "attendanceType", width: 20 },
       { header: "Terlambat", key: "lateMinutes", width: 15 },
       { header: "Pulang Cepat", key: "earlyLeaveMinutes", width: 15 },
+      { header: "Mode", key: "mode", width: 15 },
       { header: "Status", key: "status", width: 15 },
     ],
   });

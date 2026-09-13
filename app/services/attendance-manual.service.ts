@@ -38,9 +38,14 @@ const attendanceManualService = () => {
     return api.post(`${url}/bulk-delete`, { ids });
   }
 
+  async function retrieveLogs(id: any) {
+    return api.get(`${url}/${id}/logs`);
+  }
+
   return {
     retrieve,
     retrieveById,
+    retrieveLogs,
     save,
     create,
     update,

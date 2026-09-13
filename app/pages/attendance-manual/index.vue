@@ -11,7 +11,7 @@
       :tableData="tableData"
       :loading="isLoading"
       :filterSchema="filterSchema"
-      :filterList="{ listInstitution, listPosition, listDepartment, listAttendanceType, listStatus, listMode }"
+      :filterList="{ listInstitution, listPosition, listDepartment, listAttendanceType, listStatus }"
       :actions="actions"
       :actionToolbars="actionToolbars"
       :actionLoading="{ exportItem: isExporting }"
@@ -20,6 +20,7 @@
       @editItem="editItem"
       @deleteItem="deleteItem"
       @exportItem="exportItem"
+      @showLogs="openLogsModal"
     >
       <!-- Date Column (DD/MM/YYYY) -->
       <template v-slot:[`item.attendanceDate`]="{ value }">
@@ -67,6 +68,105 @@
         </span>
       </template>
     </TableListModalFilter>
+
+    <!-- Audit Trail / Logs Modal -->
+    <UiModal
+      v-model="showLogsDialog"
+      title="Riwayat Log Presensi"
+      size="lg"
+    >
+      <template #header>
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+            <i class="mdi mdi-history text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">
+              Riwayat Log Presensi
+            </h3>
+            <p v-if="selectedAttendance" class="text-xs text-slate-500 dark:text-slate-400">
+              {{ selectedAttendance.personName }} ({{ selectedAttendance.personNip || '—' }}) • {{ formatDateOnly(selectedAttendance.attendanceDate) }}
+            </p>
+          </div>
+        </div>
+      </template>
+
+      <div class="py-2 min-h-[160px]">
+        <div v-if="isLoadingLogs" class="flex flex-col items-center justify-center py-10 space-y-2">
+          <i class="mdi mdi-loading mdi-spin text-3xl text-primary-600"></i>
+          <span class="text-xs text-slate-500">Memuat riwayat log presensi...</span>
+        </div>
+
+        <div v-else-if="logsList.length === 0" class="py-10 text-center text-slate-500 text-xs">
+          <i class="mdi mdi-information-outline text-2xl text-slate-400 block mb-1"></i>
+          Belum ada data riwayat log presensi tercatat.
+        </div>
+
+        <div v-else class="relative pl-6 space-y-4 my-2 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-700">
+          <div
+            v-for="(log, idx) in logsList"
+            :key="log.id || idx"
+            class="relative flex items-start gap-3 text-xs"
+          >
+            <!-- Dot Badge -->
+            <div
+              class="absolute -left-6 top-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-xs"
+              :class="log.action?.toLowerCase() === 'checkin' ? 'bg-emerald-500' : 'bg-blue-500'"
+            >
+              <i :class="log.action?.toLowerCase() === 'checkin' ? 'mdi mdi-login' : 'mdi mdi-logout'"></i>
+            </div>
+
+            <!-- Content Card -->
+            <div class="flex-1 p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <UiBadge
+                    :variant="log.action?.toLowerCase() === 'checkin' ? 'success' : 'info'"
+                    size="sm"
+                  >
+                    {{ log.action?.toUpperCase() === 'CHECKIN' ? 'PRESENSI MASUK' : 'PRESENSI PULANG' }}
+                  </UiBadge>
+                  <span class="font-mono font-bold text-slate-800 dark:text-slate-200 text-sm">
+                    {{ formatDate(log.dateTime, "HH:mm:ss", true) }}
+                  </span>
+                </div>
+                <span class="text-[11px] text-slate-400 font-mono">
+                  {{ formatDate(log.dateTime, "DD/MM/YYYY", true) }}
+                </span>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-2 pt-1 text-slate-600 dark:text-slate-400 text-[11px] border-t border-slate-200/60 dark:border-slate-700/60">
+                <div>
+                  <span class="text-slate-400">Metode / Sumber:</span>
+                  <p class="font-semibold text-slate-800 dark:text-slate-200">
+                    {{ formatDeviceName(log.device) }}
+                  </p>
+                </div>
+                <div>
+                  <span class="text-slate-400">Operator / Disimpan Oleh:</span>
+                  <p class="font-semibold text-slate-800 dark:text-slate-200">
+                    {{ log.creatorName || 'Sistem / Mandiri' }}
+                  </p>
+                </div>
+                <div>
+                  <span class="text-slate-400">Waktu Input:</span>
+                  <p class="font-mono font-semibold text-slate-800 dark:text-slate-200">
+                    {{ log.createdAt ? formatDate(log.createdAt, "DD/MM/YYYY HH:mm", true) : '—' }}
+                  </p>
+                </div>
+              </div>
+
+              <div v-if="log.note" class="pt-1.5 text-[11px] border-t border-slate-200/60 dark:border-slate-700/60">
+                <span class="text-slate-400">Catatan / Alasan:</span>
+                <p class="italic text-slate-700 dark:text-slate-300 font-medium">
+                  "{{ log.note }}"
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </UiModal>
   </div>
 </template>
 
@@ -110,19 +210,9 @@ const listPosition: any = ref([]);
 const listDepartment: any = ref([]);
 const listAttendanceType: any = ref([]);
 
-const listMode = ref([
-  { id: "manual", name: "Manual" },
-  { id: "auto", name: "Otomatis" },
-]);
-
 const listStatus = ref([
   { id: "present", name: "Hadir" },
   { id: "late", name: "Terlambat" },
-  { id: "leave", name: "Izin / Cuti" },
-  { id: "duty", name: "Dinas Luar" },
-  { id: "sick", name: "Sakit" },
-  { id: "absent", name: "Alpa" },
-  { id: "holiday", name: "Hari Libur" },
 ]);
 
 const getTodayDateString = () => {
@@ -148,8 +238,8 @@ const headers = computed(() => [
   { key: "attendanceDate", title: "Tanggal", sortable: true },
   { key: "personNip", title: "NIP", sortable: true },
   { key: "personName", title: "Pegawai", sortable: true },
-  { key: "institutionName", title: "Institusi", sortable: true },
-  { key: "departmentName", title: "Departemen", sortable: true },
+    // { key: "institutionName", title: "Institusi", sortable: true },
+    // { key: "departmentName", title: "Departemen", sortable: true },
   { key: "attendanceTypeName", title: "Jenis Kehadiran", sortable: true },
   { key: "checkinTime", title: "Masuk", sortable: true, align: "center" },
   { key: "checkoutTime", title: "Pulang", sortable: true, align: "center" },
@@ -244,20 +334,21 @@ const filterSchema = computed(() => [
     colModalMd: 6,
     showInModal: true,
   },
-  {
-    name: "mode",
-    modalLabel: "Mode Presensi",
-    type: "autocomplete" as const,
-    items: "listMode",
-    placeholder: "Pilih Mode",
-    valueKey: "id",
-    textKey: "name",
-    colModalMd: 6,
-    showInModal: true,
-  },
 ]);
 
+const showLogsDialog = ref(false);
+const isLoadingLogs = ref(false);
+const selectedAttendance = ref<any>(null);
+const logsList = ref<any[]>([]);
+
 const actions = computed(() => [
+  {
+    key: "logs",
+    icon: "mdi-history",
+    color: "#3b82f6",
+    tooltip: "Riwayat Log / Audit Trail",
+    emit: "showLogs",
+  },
   {
     key: "edit",
     icon: "mdi-pencil",
@@ -337,6 +428,28 @@ const getAttendanceTypeBadgeVariant = (cat: string | null): "primary" | "info" |
   return "primary";
 };
 
+const formatDeviceName = (device?: string) => {
+  if (!device) return "Aplikasi Presensi";
+  if (device === "manual_dispensation" || device === "manual") return "Input Manual (Dispensasi)";
+  if (device.includes("mobile") || device.includes("Android") || device.includes("iPhone")) return "Aplikasi Mobile";
+  return device;
+};
+
+async function openLogsModal(item: any) {
+  selectedAttendance.value = item;
+  showLogsDialog.value = true;
+  isLoadingLogs.value = true;
+  logsList.value = [];
+  try {
+    const res: any = await manualSvc.retrieveLogs(item.id);
+    logsList.value = res.data || res || [];
+  } catch (err) {
+    console.error("Failed to load attendance logs", err);
+  } finally {
+    isLoadingLogs.value = false;
+  }
+}
+
 onMounted(() => {
   loadOptions();
 });
@@ -347,7 +460,9 @@ async function loadOptions() {
       institutionSvc.retrieveAll().catch(() => []),
       positionSvc.retrieveAll().catch(() => []),
       deptSvc.retrieveAll().catch(() => []),
-      attendanceTypeSvc.retrieveAll().catch(() => []),
+      attendanceTypeSvc.retrieveAll({
+        category: 'attendance'
+      }).catch(() => []),
     ]);
 
     listInstitution.value = instRes.data || instRes || [];
@@ -442,13 +557,12 @@ async function exportItem() {
     attendanceDate: formatDateOnly(item.attendanceDate),
     personNip: item.personNip || "—",
     personName: item.personName || "—",
+    institutionName: item.institutionName || "—",
     departmentName: item.departmentName || "—",
-    positionName: item.positionName || "—",
     attendanceTypeName: item.attendanceTypeName || item.attendanceType || "REGULAR",
     checkinTime: formatTimeOnly(item.checkinTime),
     checkoutTime: formatTimeOnly(item.checkoutTime),
     status: parseStatus(item.status),
-    mode: item.mode || "manual",
     note: item.note || "—",
   }));
 
@@ -462,14 +576,13 @@ async function exportItem() {
     columns: [
       { header: "Tanggal", key: "attendanceDate", width: 15 },
       { header: "NIP", key: "personNip", width: 20 },
-      { header: "Nama Pegawai", key: "personName", width: 30 },
+      { header: "Pegawai", key: "personName", width: 30 },
+      { header: "Institusi", key: "institutionName", width: 25 },
       { header: "Departemen", key: "departmentName", width: 25 },
-      { header: "Jabatan", key: "positionName", width: 25 },
-      { header: "Jenis Presensi", key: "attendanceTypeName", width: 25 },
+      { header: "Jenis Kehadiran", key: "attendanceTypeName", width: 25 },
       { header: "Masuk", key: "checkinTime", width: 12 },
       { header: "Pulang", key: "checkoutTime", width: 12 },
       { header: "Status", key: "status", width: 15 },
-      { header: "Mode", key: "mode", width: 15 },
       { header: "Keterangan", key: "note", width: 35 },
     ],
   });

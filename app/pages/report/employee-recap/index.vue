@@ -59,13 +59,13 @@
             />
           </UiCol>
 
-          <!-- Year Select -->
+          <!-- Year Input -->
           <UiCol cols="12" md="6" lg="3">
-            <UiSelect
-              v-model="filter.year"
+            <UiInput
+              v-model.number="filter.year"
+              type="number"
               label="Tahun"
-              :options="yearOptions"
-              placeholder="Pilih Tahun"
+              placeholder="Masukkan Tahun"
             />
           </UiCol>
         </UiRow>
@@ -496,11 +496,20 @@ async function fetchReport() {
   isLoading.value = true;
   reportData.value = null;
 
+  const y = Number(filter.year || new Date().getFullYear());
+  const m = Number(filter.month || (new Date().getMonth() + 1));
+
+  const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
+  const lastDay = new Date(y, m, 0).getDate();
+  const endDate = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
   try {
     const res: any = await reportSvc.getEmployeeRecap({
       personId: filter.personId,
-      month: filter.month,
-      year: filter.year,
+      month: m,
+      year: y,
+      startDate,
+      endDate,
       institutionId: filter.institutionId,
     });
 

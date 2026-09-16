@@ -66,7 +66,7 @@
 
       <!-- Status Column -->
       <template v-slot:[`item.status`]="{ item }">
-        <UiBadge :variant="getStatusBadgeVariant(item.status, item.checkoutTime)" class="font-bold text-[11px]">
+        <UiBadge :variant="getStatusBadgeVariant(item.status, item.checkoutTime)" class="text-[11px]">
           {{ parseStatus(item.status, item.checkoutTime) }}
         </UiBadge>
       </template>
@@ -130,6 +130,12 @@ const getFirstDayOfMonthString = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 };
 
+const getLastDayOfMonthString = () => {
+  const d = new Date();
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+};
+
 const tableData: any = ref({
   items: [],
   meta: {
@@ -176,7 +182,7 @@ const filterSchema = computed(() => [
     showAboveTable: true,
     hideAboveTableMobile: true,
     clearable: false,
-    default: getTodayDateString(),
+    default: getLastDayOfMonthString(),
   },
   { name: "", type: "text" as const, colMd: 4 },
   {
@@ -274,7 +280,7 @@ const getStatusBadgeVariant = (status: string | null, checkoutTime?: any): "succ
 };
 
 const getPersonId = () => {
-  return authStore.user?.personId || (authStore.user as any)?.person?.id || '-';
+  return authStore.user?.personId || null;
 };
 
 async function loadAll() {
@@ -294,7 +300,7 @@ async function loadAll() {
       attendanceType: attendanceType,
       status: status,
       startDate: startDate ? startDate : getFirstDayOfMonthString(),
-      endDate: endDate ? endDate : getTodayDateString(),
+      endDate: endDate ? endDate : getLastDayOfMonthString(),
     })
     .then((res: any) => {
       isLoading.value = false;
@@ -322,7 +328,7 @@ async function exportItem() {
     attendanceType: attendanceType,
     status: status,
     startDate: startDate ? startDate : getFirstDayOfMonthString(),
-    endDate: endDate ? endDate : getTodayDateString(),
+    endDate: endDate ? endDate : getLastDayOfMonthString(),
     ignorePaging: true,
   });
 

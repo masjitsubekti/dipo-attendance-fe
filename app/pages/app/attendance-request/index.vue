@@ -36,7 +36,7 @@
 
       <!-- Custom render for status badge -->
       <template #item.status="{ value }">
-        <UiBadge :variant="statusVariant(value)" class="font-bold text-[11px]">
+        <UiBadge :variant="statusVariant(value)" class="text-[11px]">
           {{ statusLabel(value) }}
         </UiBadge>
       </template>
@@ -111,7 +111,7 @@ const listStatus = ref([
 
 const statusLabel = (st: string) => {
   const map: Record<string, string> = {
-    pending: "Pending / Menunggu",
+    pending: "Menunggu",
     approved: "Disetujui",
     rejected: "Ditolak",
     cancelled: "Dibatalkan",
@@ -137,6 +137,12 @@ const getTodayDateString = () => {
 const getFirstDayOfMonthString = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+};
+
+const getLastDayOfMonthString = () => {
+  const d = new Date();
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 };
 
 const tableData: any = ref({
@@ -184,7 +190,7 @@ const filterSchema = computed(() => [
     showAboveTable: true,
     hideAboveTableMobile: true,
     clearable: false,
-    default: getTodayDateString(),
+    default: getLastDayOfMonthString(),
   },
   { name: "", type: "text" as const, colMd: 4 },
   {
@@ -287,7 +293,7 @@ const openDocumentPreview = (path: string | null) => {
 };
 
 const getPersonId = () => {
-  return authStore.user?.personId || (authStore.user as any)?.person?.id || '-';
+  return authStore.user?.personId || null;
 };
 
 onMounted(() => {
@@ -324,7 +330,7 @@ async function loadAll() {
       attendanceTypeId: attendanceTypeId,
       status: status,
       startDate: startDate ? startDate : getFirstDayOfMonthString(),
-      endDate: endDate ? endDate : getTodayDateString(),
+      endDate: endDate ? endDate : getLastDayOfMonthString(),
     })
     .then((res: any) => {
       tableData.value = {
@@ -379,7 +385,7 @@ async function exportItem() {
     attendanceTypeId: attendanceTypeId,
     status: status,
     startDate: startDate ? startDate : getFirstDayOfMonthString(),
-    endDate: endDate ? endDate : getTodayDateString(),
+    endDate: endDate ? endDate : getLastDayOfMonthString(),
     ignorePaging: true,
   });
 

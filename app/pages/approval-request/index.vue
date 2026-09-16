@@ -368,6 +368,12 @@ const getFirstDayOfMonthString = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 };
 
+const getLastDayOfMonthString = () => {
+  const d = new Date();
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+};
+
 const tableData: any = ref({
   items: [],
   meta: {
@@ -414,7 +420,7 @@ const filterSchema = computed(() => [
     showAboveTable: true,
     hideAboveTableMobile: true,
     clearable: false,
-    default: getTodayDateString(),
+    default: getLastDayOfMonthString(),
   },
   { name: "", type: "text" as const, colMd: 4 },
   {
@@ -567,7 +573,7 @@ async function loadAll() {
       departmentId: departmentId,
       status: status,
       startDate: startDate ? startDate : getFirstDayOfMonthString(),
-      endDate: endDate ? endDate : getTodayDateString(),
+      endDate: endDate ? endDate : getLastDayOfMonthString(),
     })
     .then((res: any) => {
       tableData.value = {
@@ -652,7 +658,7 @@ async function exportItem() {
     departmentId: departmentId,
     status: status,
     startDate: startDate ? startDate : getFirstDayOfMonthString(),
-    endDate: endDate ? endDate : getTodayDateString(),
+    endDate: endDate ? endDate : getLastDayOfMonthString(),
     ignorePaging: true,
   });
 

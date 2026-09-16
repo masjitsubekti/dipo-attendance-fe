@@ -15,6 +15,7 @@ const router = useRouter();
 const authStore = useAuthStore();
 const swal = useSwal();
 const toast = useToast();
+const { formatDate } = useFormat();
 const {
   latitude, longitude, error: gpsError,
   requestPosition, startWatching,
@@ -99,14 +100,30 @@ const updateClock = () => {
   });
 };
 
+const showMap = ref(false);
+
+const toggleMap = () => {
+  showMap.value = !showMap.value;
+  if (showMap.value) {
+    nextTick(() => {
+      if (mapComponentRef.value?.fitMapBounds) {
+        mapComponentRef.value.fitMapBounds();
+      }
+    });
+  }
+};
+
 // ==================== Geocoding Helper ====================
 const focusLocation = () => {
-  if (mapComponentRef.value?.focusUserLocation) {
-    mapComponentRef.value.focusUserLocation();
-  } else if (mapComponentRef.value?.fitMapBounds) {
-    mapComponentRef.value.fitMapBounds();
-  }
-  requestPosition().catch(() => {});
+  showMap.value = true;
+  nextTick(() => {
+    if (mapComponentRef.value?.focusUserLocation) {
+      mapComponentRef.value.focusUserLocation();
+    } else if (mapComponentRef.value?.fitMapBounds) {
+      mapComponentRef.value.fitMapBounds();
+    }
+    requestPosition().catch(() => {});
+  });
 };
 
 // ==================== Load Data ====================
@@ -198,11 +215,13 @@ const doSubmit = async (action: 'checkin' | 'checkout') => {
 
 // Handle location select change to auto-focus map
 const onLocationChange = (_val?: any) => {
-  nextTick(() => {
-    if (mapComponentRef.value?.fitMapBounds) {
-      mapComponentRef.value.fitMapBounds();
-    }
-  });
+  if (showMap.value) {
+    nextTick(() => {
+      if (mapComponentRef.value?.fitMapBounds) {
+        mapComponentRef.value.fitMapBounds();
+      }
+    });
+  }
 };
 
 // ==================== Lifecycle ====================
@@ -245,158 +264,212 @@ onUnmounted(() => {
       </button>
     </div>
 
-    <!-- Map Header Backdrop -->
-    <div class="relative h-48 w-full overflow-hidden z-0">
-      <AttendanceMap
-        v-if="primaryLocation"
-        ref="mapComponentRef"
-        :institution-lat="primaryLocation.latitude"
-        :institution-lon="primaryLocation.longitude"
-        :radius-meter="primaryLocation.radiusMeter"
-        :location-name="primaryLocation.name"
-        :user-lat="latitude"
-        :user-lon="longitude"
-        :loading="pageLoading"
-      />
-      <div v-else-if="!pageLoading" class="w-full h-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center">
-        <p class="text-xs text-slate-500 dark:text-slate-400">Peta lokasi belum tersedia</p>
-      </div>
+    <!-- Map Header Backdrop (Lazy Loaded / On Demand) -->
+    <div class="relative h-44 w-full overflow-hidden z-0 bg-slate-800 dark:bg-slate-950 flex items-center justify-center">
+      <template v-if="showMap">
+        <AttendanceMap
+          v-if="primaryLocation"
+          ref="mapComponentRef"
+          :institution-lat="primaryLocation.latitude"
+          :institution-lon="primaryLocation.longitude"
+          :radius-meter="primaryLocation.radiusMeter"
+          :location-name="primaryLocation.name"
+          :user-lat="latitude"
+          :user-lon="longitude"
+          :loading="pageLoading"
+        />
+        <!-- Button Hide Map -->
+        <button
+          @click="showMap = false"
+          class="absolute bottom-8 right-3 z-10 px-2.5 py-1 rounded-lg bg-black/60 hover:bg-black/80 text-white text-[11px] font-medium backdrop-blur-md transition-all flex items-center gap-1 shadow"
+        >
+          <i class="mdi mdi-eye-off-outline text-xs"></i>
+          <span>Sembunyikan Peta</span>
+        </button>
+      </template>
+      <template v-else>
+        <!-- Sleek Banner / Placeholder when map is not loaded -->
+        <div class="w-full h-full bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 flex flex-col items-center justify-center p-4 text-center">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="text-xs font-semibold text-slate-300">GPS & Deteksi Lokasi Aktif</span>
+          </div>
+          <button
+            @click="toggleMap"
+            class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-white border border-white/20 backdrop-blur-md text-xs font-semibold transition-all shadow-sm"
+          >
+            <i class="mdi mdi-map-marker-radius text-blue-400 text-sm"></i>
+            <span>Tampilkan Peta</span>
+          </button>
+        </div>
+      </template>
     </div>
 
     <!-- Main Card Container (Mockup Sheet Design) -->
-    <div class="relative z-10 -mt-6 rounded-t-[2.2rem] bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 px-5 pt-6 pb-8 space-y-6">
+    <div class="relative z-10 -mt-6 rounded-t-[2.2rem] bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 px-4 pt-4 pb-6 space-y-3.5">
 
-      <!-- Unified Compact Location Card Header with Focus GPS Button on Right -->
-      <div class="flex items-center justify-between mb-2">
+      <!-- Section 1: Presensi Hari Ini (Ultra Compact 1-Row Widget) -->
+      <div class="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 text-xs">
+        <!-- Checkin Status (Kiri) -->
         <div class="flex items-center gap-2">
-          <i class="mdi mdi-map-marker text-blue-500 text-lg"></i>
-          <h2 class="text-sm font-bold text-slate-800 dark:text-white">Lokasi Presensi</h2>
+          <i class="mdi mdi-login text-emerald-500 text-sm"></i>
+          <span class="text-slate-400 dark:text-slate-500 font-medium text-[11px] uppercase tracking-wide">Masuk:</span>
+          <span
+            class="font-bold text-xs"
+            :class="attendance?.checkinTime ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'"
+          >
+            {{ attendance?.checkinTime ? formatDate(attendance.checkinTime, 'HH:mm', true) : '--:--' }}
+          </span>
+          <span v-if="attendance?.lateMinutes && attendance.lateMinutes > 0" class="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+            (+{{ attendance.lateMinutes }}m)
+          </span>
         </div>
 
-        <!-- Focus GPS Location Button -->
-        <button
-          @click="focusLocation"
-          title="Fokuskan Lokasi Saya"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-xs font-semibold transition-all active:scale-95 border border-blue-200/50 dark:border-blue-800/40"
-        >
-          <i class="mdi mdi-crosshairs-gps text-sm"></i>
-          <span>Fokuskan Lokasi</span>
-        </button>
+        <div class="h-3.5 w-px bg-slate-200 dark:bg-slate-800"></div>
+
+        <!-- Checkout Status (Kanan) -->
+        <div class="flex items-center gap-2">
+          <i class="mdi mdi-logout text-blue-500 text-sm"></i>
+          <span class="text-slate-400 dark:text-slate-500 font-medium text-[11px] uppercase tracking-wide">Pulang:</span>
+          <span
+            class="font-bold text-xs"
+            :class="attendance?.checkoutTime ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500'"
+          >
+            {{ attendance?.checkoutTime ? formatDate(attendance.checkoutTime, 'HH:mm', true) : '--:--' }}
+          </span>
+          <span v-if="attendance?.earlyLeaveMinutes && attendance.earlyLeaveMinutes > 0" class="text-[10px] font-semibold text-rose-600 dark:text-rose-400">
+            (-{{ attendance.earlyLeaveMinutes }}m)
+          </span>
+        </div>
       </div>
-      <div v-if="primaryLocation" class="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 p-4 space-y-3">
-        <!-- Top: Location Dropdown -->
-        <div>
-          <UiSelect
-            v-model="selectedLocationId"
-            placeholder="Pilih lokasi presensi..."
-            :options="locationOptions"
-            item-value="value"
-            item-title="label"
-            @change="onLocationChange"
-          />
-        </div>
 
-        <!-- Bottom Row: Distance & Radius Status Badge -->
-        <div class="flex items-center justify-between pt-2 border-t border-slate-200/60 dark:border-slate-800 text-xs">
-          <div class="space-y-0.5">
-            <span class="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">JARAK ANDA</span>
-            <p class="text-sm font-extrabold text-slate-800 dark:text-slate-200">
-              {{ estimatedDistance !== null ? `${estimatedDistance} m` : 'Mendeteksi...' }}
-              <span class="text-xs font-normal text-slate-600 dark:text-slate-500 ml-1">
-                ({{ isNoRadiusLimit ? 'Bebas Radius' : `Radius ${primaryLocation.radiusMeter}m` }})
-              </span>
-            </p>
+      <!-- Section 2: Lokasi Presensi -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <i class="mdi mdi-map-marker text-blue-500 text-lg"></i>
+            <h2 class="text-sm font-bold text-slate-800 dark:text-white">Lokasi Presensi</h2>
           </div>
 
+          <!-- Focus GPS Location Button -->
+          <button
+            @click="focusLocation"
+            title="Fokuskan Lokasi Saya"
+            class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-xs font-semibold transition-all active:scale-95 border border-blue-200/50 dark:border-blue-800/40"
+          >
+            <i class="mdi mdi-crosshairs-gps text-sm"></i>
+            <span>Fokuskan Lokasi</span>
+          </button>
+        </div>
+
+        <div v-if="primaryLocation" class="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 p-3 space-y-2.5">
+          <!-- Top: Location Dropdown -->
           <div>
-            <span
-              v-if="isNoRadiusLimit"
-              class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400"
-            >
-              <i class="mdi mdi-earth"></i> Bebas Area
-            </span>
-            <span
-              v-else-if="isWithinRadius"
-              class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700/40"
-            >
-              <i class="mdi mdi-check-circle"></i> Dalam area
-            </span>
-            <span
-              v-else
-              class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border border-rose-300 dark:border-rose-700/40"
-            >
-              <i class="mdi mdi-close-circle"></i> Di luar area
-            </span>
+            <UiSelect
+              v-model="selectedLocationId"
+              placeholder="Pilih lokasi presensi..."
+              :options="locationOptions"
+              item-value="value"
+              item-title="label"
+              size="sm"
+              @change="onLocationChange"
+            />
+          </div>
+
+          <!-- Bottom Row: Distance & Radius Status Badge -->
+          <div class="flex items-center justify-between pt-2 border-t border-slate-200/60 dark:border-slate-800 text-xs">
+            <div class="space-y-0.5">
+              <span class="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">JARAK ANDA</span>
+              <p class="text-xs font-bold text-slate-800 dark:text-slate-200">
+                {{ estimatedDistance !== null ? `${estimatedDistance} m` : 'Mendeteksi...' }}
+                <span class="text-[10px] font-normal text-slate-500 dark:text-slate-400 ml-1">
+                  ({{ isNoRadiusLimit ? 'Bebas Radius' : `Radius ${primaryLocation.radiusMeter}m` }})
+                </span>
+              </p>
+            </div>
+
+            <div>
+              <span
+                v-if="isNoRadiusLimit"
+                class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400"
+              >
+                <i class="mdi mdi-earth text-xs"></i> Bebas Area
+              </span>
+              <span
+                v-else-if="isWithinRadius"
+                class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700/40"
+              >
+                <i class="mdi mdi-check-circle text-xs"></i> Dalam area
+              </span>
+              <span
+                v-else
+                class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border border-rose-300 dark:border-rose-700/40"
+              >
+                <i class="mdi mdi-close-circle text-xs"></i> Di luar area
+              </span>
+            </div>
           </div>
         </div>
       </div>
       
       <!-- Section 3: Jadwal Kerja -->
-      <div class="space-y-3">
-        <div class="flex items-center gap-2 mb-2">
+      <div class="space-y-2">
+        <div class="flex items-center gap-2">
           <i class="mdi mdi-clock-outline text-blue-500 text-lg"></i>
           <h2 class="text-sm font-bold text-slate-800 dark:text-white">Jadwal Kerja</h2>
         </div>
 
         <!-- Shift Card -->
-        <div class="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 p-4 space-y-3">
+        <div class="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 p-3 space-y-2">
           <div class="flex items-center justify-between">
-            <span class="text-sm font-bold text-slate-900 dark:text-white">
+            <span class="text-xs font-bold text-slate-900 dark:text-white">
               {{ shift?.shiftName || 'Shift Reguler' }}
             </span>
             <span
               v-if="shift?.isWorkingDay"
-              class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400"
+              class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400"
             >
               Aktif
             </span>
             <span
               v-else
-              class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+              class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
             >
               Non-Shift / Libur
             </span>
           </div>
 
-          <div v-if="shift?.isWorkingDay" class="grid grid-cols-2 gap-4 pt-1 border-t border-slate-200/60 dark:border-slate-800 text-xs">
+          <div v-if="shift?.isWorkingDay" class="grid grid-cols-2 gap-3 pt-1 border-t border-slate-200/60 dark:border-slate-800 text-xs">
             <div>
-              <span class="text-[11px] font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase block mb-0.5">MASUK</span>
-              <p class="text-base font-extrabold text-slate-900 dark:text-white">
+              <span class="text-[10px] font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase block mb-0.5">MASUK</span>
+              <p class="text-sm font-extrabold text-slate-900 dark:text-white">
                 {{ shift?.workTime?.workStartTime || '08:00' }}
               </p>
-              <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+              <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
                 Checkin: <strong class="font-semibold text-slate-700 dark:text-slate-300">{{ (shift?.workTime?.checkinStart && shift?.workTime?.checkinEnd) ? `${shift.workTime.checkinStart} – ${shift.workTime.checkinEnd}` : (shift?.workTime?.workStartTime ? `Buka sebelum ${shift.workTime.workStartTime}` : '06:00 – 08:30') }}</strong>
               </p>
             </div>
-            <div class="border-l border-slate-200 dark:border-slate-800 pl-4">
-              <span class="text-[11px] font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase block mb-0.5">PULANG</span>
-              <p class="text-base font-extrabold text-slate-900 dark:text-white">
+            <div class="border-l border-slate-200 dark:border-slate-800 pl-3">
+              <span class="text-[10px] font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase block mb-0.5">PULANG</span>
+              <p class="text-sm font-extrabold text-slate-900 dark:text-white">
                 {{ shift?.workTime?.workEndTime || '16:00' }}
               </p>
-              <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+              <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
                 Checkout: <strong class="font-semibold text-slate-700 dark:text-slate-300">{{ shift?.workTime?.checkoutStart ? `${shift.workTime.checkoutStart} – ${shift.workTime.checkoutEnd || 'Selesai'}` : (shift?.workTime?.workEndTime ? `Mulai ${shift.workTime.workEndTime}` : '16:00 – Selesai') }}</strong>
               </p>
             </div>
           </div>
-          <div v-else class="pt-2.5 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-center py-2">
-            <p class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-medium">
-              <i class="mdi mdi-calendar-blank-outline text-amber-500 text-base"></i>
+          <div v-else class="pt-2 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-center py-1.5">
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-medium">
+              <i class="mdi mdi-calendar-blank-outline text-amber-500 text-sm"></i>
               <span>Hari ini Libur / Tidak ada jam kerja wajib</span>
             </p>
           </div>
         </div>
-
-        <!-- Attendance Status Summary -->
-        <!-- <AttendanceStatus
-          :attendance="attendance"
-          :can-checkin="canCheckin"
-          :can-checkout="canCheckout"
-          :loading="pageLoading"
-        /> -->
       </div>
 
       <!-- Section 4 & 5: Verifikasi Wajah & Main CTA -->
-      <div class="space-y-4">
+      <div class="space-y-2">
         <div v-if="todayData?.config?.require_attendance_photo ?? true" class="flex items-center gap-2">
           <i class="mdi mdi-camera text-blue-500 text-lg"></i>
           <h2 class="text-sm font-bold text-slate-800 dark:text-white">Verifikasi Wajah</h2>

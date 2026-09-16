@@ -162,7 +162,7 @@ const listStatus = ref([
 
 const statusLabel = (st: string) => {
   const map: Record<string, string> = {
-    pending: "Pending",
+    pending: "Menunggu",
     approved: "Disetujui",
     rejected: "Ditolak",
     cancelled: "Dibatalkan",
@@ -183,6 +183,17 @@ const statusVariant = (st: string): "warning" | "success" | "danger" | "default"
 const getTodayDateString = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+const getFirstDayOfMonthString = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+};
+
+const getLastDayOfMonthString = () => {
+  const d = new Date();
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 };
 
 const tableData: any = ref({
@@ -221,7 +232,7 @@ const filterSchema = computed(() => [
     showInModal: true,
     showAboveTable: true,
     clearable: false,
-    default: getTodayDateString(),
+    default: getFirstDayOfMonthString(),
   },
   {
     name: "endDate",
@@ -232,7 +243,7 @@ const filterSchema = computed(() => [
     showInModal: true,
     showAboveTable: true,
     clearable: false,
-    default: getTodayDateString(),
+    default: getLastDayOfMonthString(),
   },
   { name: "", type: "text" as const, colMd: 4 },
   {
@@ -437,8 +448,8 @@ async function loadAll() {
       departmentId: departmentId,
       attendanceTypeId: attendanceTypeId,
       status: status,
-      startDate: startDate ? startDate : getTodayDateString(),
-      endDate: endDate ? endDate : getTodayDateString(),
+      startDate: startDate ? startDate : getFirstDayOfMonthString(),
+      endDate: endDate ? endDate : getLastDayOfMonthString(),
     })
     .then((res: any) => {
       tableData.value = {
@@ -525,8 +536,8 @@ async function exportItem() {
     departmentId: departmentId,
     attendanceTypeId: attendanceTypeId,
     status: status,
-    startDate: startDate ? startDate : getTodayDateString(),
-    endDate: endDate ? endDate : getTodayDateString(),
+    startDate: startDate ? startDate : getFirstDayOfMonthString(),
+    endDate: endDate ? endDate : getLastDayOfMonthString(),
     ignorePaging: true,
   });
 

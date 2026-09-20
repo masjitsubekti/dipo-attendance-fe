@@ -134,6 +134,7 @@
                   label="Email"
                   placeholder="Masukkan Email"
                   :rules="emailRules"
+                  required
                 />
               </UiCol>
 
@@ -142,10 +143,19 @@
                   v-model="editedItem.smtpPassword"
                   label="Password"
                   placeholder="Masukkan Password"
-                  type="password"
+                  :type="showSmtpPassword ? 'text' : 'password'"
                   required
                   :rules="[(v) => !!v || 'Wajib diisi']"
-                />
+                >
+                  <template #suffix>
+                    <UiIconButton
+                      :icon="showSmtpPassword ? 'mdi-eye-off' : 'mdi-eye'"
+                      size="sm"
+                      variant="ghost"
+                      @click="showSmtpPassword = !showSmtpPassword"
+                    />
+                  </template>
+                </UiInput>
               </UiCol>
             </UiRow>
           </div>
@@ -155,69 +165,74 @@
           <template #header>
             <div class="flex items-center">
               <UiIcon
-                name="mdi-store-clock-outline"
-                color="#d97706"
+                name="mdi-tune"
+                color="#0ea5e9"
                 class="mr-3"
               />
               <h3 class="my-2">Konfigurasi Sistem</h3>
             </div>
           </template>
 
-          <div class="space-y-4">
+          <div>
             <UiRow>
               <UiCol cols="12" md="6">
-                <UiInput
-                  v-model="editedItem.startCsdNo"
-                  label="Start CSD No"
-                  placeholder="Masukkan Start CSD No"
-                  required
-                  :rules="[(v) => !!v || 'Wajib diisi']"
-                >
-                  <template #prefix>
-                    <span class="-ml-1 inline-flex h-10 text-[15px] items-center text-slate-700 dark:text-slate-200">
-                      01-
-                    </span>
-                  </template>
-                </UiInput>
-              </UiCol>
-
-              <UiCol cols="12" md="6">
-                <UiInput
-                  v-model="editedItem.startBtbNo"
-                  label="Start BTB No"
-                  placeholder="Masukkan Start BTB No"
-                  required
-                  :rules="[(v) => !!v || 'Wajib diisi']"
-                >
-                  <template #prefix>
-                    <span class="-ml-1 inline-flex text-[15px] h-10 items-center text-slate-700 dark:text-slate-200">
-                      02-
-                    </span>
-                  </template>
-                </UiInput>
+                <UiSelect
+                  v-model="editedItem.storageDriver"
+                  label="Driver Penyimpanan"
+                  placeholder="Pilih Driver Penyimpanan"
+                  :options="storageDriverOptions"
+                  item-value="value"
+                  item-title="label"
+                />
               </UiCol>
             </UiRow>
             
-            <UiRow>
-              <UiCol>
-                <UiInput
-                  v-model="editedItem.startRejectNo"
-                  label="Start Reject No"
-                  placeholder="Masukkan Start Reject No"
-                  required
-                  :rules="[(v) => !!v || 'Wajib diisi']"
-                >
-                </UiInput>
+            <UiRow class="items-start pt-3">
+              <UiCol cols="12" md="4">
+                <UiSwitch
+                  v-model="editedItem.allowHolidayAttendance"
+                  label="Izinkan Presensi Hari Libur"
+                  layout="stacked"
+                  :valueText="editedItem.allowHolidayAttendance ? 'Aktif' : 'Non Aktif'"
+                />
+                <small class="text-xs text-slate-500 dark:text-slate-400 block mt-1.5">
+                  Pegawai dapat melakukan presensi pada hari libur
+                </small>
+              </UiCol>
+
+              <UiCol cols="12" md="4">
+                <UiSwitch
+                  v-model="editedItem.saveAttendancePhoto"
+                  label="Simpan Foto Presensi"
+                  layout="stacked"
+                  :valueText="editedItem.saveAttendancePhoto ? 'Aktif' : 'Non Aktif'"
+                />
+                <small class="text-xs text-slate-500 dark:text-slate-400 block mt-1.5">
+                  Menyimpan file foto selfie saat check-in dan check-out
+                </small>
+              </UiCol>
+
+              <UiCol cols="12" md="4">
+                <UiSwitch
+                  v-model="editedItem.requireAttendancePhoto"
+                  label="Wajibkan Foto Presensi"
+                  layout="stacked"
+                  :valueText="editedItem.requireAttendancePhoto ? 'Aktif' : 'Non Aktif'"
+                />
+                <small class="text-xs text-slate-500 dark:text-slate-400 block mt-1.5">
+                  Pegawai wajib mengambil foto selfie untuk presensi
+                </small>
               </UiCol>
             </UiRow>
           </div>
         </UiCard>
       </div>
 
-      <div class="flex justify-end space-x-2 mt-4 gap-4">
+      <div class="flex justify-end space-x-2 mt-4 gap-2">
         <UiButton
           @click="handleCancel"
           variant="outline"
+          color="secondary"
           :disabled="loadSave || loading"
         >
           Batal
@@ -267,6 +282,7 @@
 import appConfigService from "@/services/app_config.service";
 import { useSwal } from "~/composables/useSwal";
 import { usePermission } from "~/composables/usePermission";
+import { useFileUrl } from "~/composables/useFileUrl";
 
 definePageMeta({
   layout: "admin",
@@ -280,6 +296,7 @@ useHead({
 });
 
 const swal = useSwal();
+const { getFileUrl } = useFileUrl();
 
 const formRef = ref<{
   validate: () => Promise<boolean>;
@@ -287,18 +304,40 @@ const formRef = ref<{
   resetValidation: () => void;
 } | null>(null);
 
-const editedItem: any = ref({});
+const editedItem = ref<Record<string, any>>({
+  id: 1,
+  appName: "",
+  appLogo: null,
+  companyName: "",
+  companyEmail: "",
+  companyLogo: null,
+  address: "",
+  smtpHost: "",
+  smtpPort: null,
+  smtpEmail: "",
+  smtpPassword: "",
+  allowHolidayAttendance: true,
+  saveAttendancePhoto: true,
+  requireAttendancePhoto: true,
+  storageDriver: "local",
+});
+
 const loading = ref(false);
 const loadSave = ref(false);
+const showSmtpPassword = ref(false);
 
 const dialog = ref(false);
 const dialogTitle = ref("Ubah Logo");
 const loadingLogo = ref(false);
-const file: any = ref(null);
+const file = ref<any>(null);
+
+const storageDriverOptions = [
+  { label: "Penyimpanan Lokal (Local Disk)", value: "local" },
+  { label: "Supabase S3 Storage (Cloud)", value: "supabase" },
+];
 
 const emailRules = ref([
-  (v: string) => !!v || "Wajib diisi",
-  (v: string) => /.+@.+\..+/.test(v) || "Format email salah",
+  (v: string) => !v || /.+@.+\..+/.test(v) || "Format email tidak valid",
 ]);
 
 const breadcrumbs = computed(() => [
@@ -317,12 +356,6 @@ onMounted(() => {
   getConfig();
 });
 
-function getFileUrl(fileName?: string | null) {
-  if (!fileName) return "";
-
-  return `/api/files?path=${encodeURIComponent(fileName)}`;
-}
-
 function isNumber(event: any) {
   const regex = /\d/;
   if (!regex.test(event.key)) {
@@ -336,7 +369,30 @@ function getConfig() {
   appConfigService()
     .retrieveById(1)
     .then((res: any) => {
-      editedItem.value = res.data;
+      const data = res.data || {};
+      editedItem.value = {
+        id: data.id || 1,
+        appName: data.appName ?? data.app_name ?? "",
+        appLogo: data.appLogo ?? data.app_logo ?? null,
+        companyName: data.companyName ?? data.company_name ?? "",
+        companyEmail: data.companyEmail ?? data.company_email ?? "",
+        companyLogo: data.companyLogo ?? data.company_logo ?? null,
+        address: data.address ?? "",
+        smtpHost: data.smtpHost ?? data.smtp_host ?? "",
+        smtpPort: data.smtpPort ?? data.smtp_port ?? null,
+        smtpEmail: data.smtpEmail ?? data.smtp_email ?? "",
+        smtpPassword: data.smtpPassword ?? data.smtp_password ?? "",
+        allowHolidayAttendance: data.allowHolidayAttendance !== undefined
+          ? Boolean(data.allowHolidayAttendance)
+          : (data.allow_holiday_attendance !== undefined ? Boolean(data.allow_holiday_attendance) : true),
+        saveAttendancePhoto: data.saveAttendancePhoto !== undefined
+          ? Boolean(data.saveAttendancePhoto)
+          : (data.save_attendance_photo !== undefined ? Boolean(data.save_attendance_photo) : true),
+        requireAttendancePhoto: data.requireAttendancePhoto !== undefined
+          ? Boolean(data.requireAttendancePhoto)
+          : (data.require_attendance_photo !== undefined ? Boolean(data.require_attendance_photo) : true),
+        storageDriver: data.storageDriver ?? data.storage_driver ?? "local",
+      };
     })
     .catch((err: any) => {
       console.error("Failed to get app config", err);
@@ -363,17 +419,23 @@ async function handleSave() {
 
   loadSave.value = true;
 
-  const dataToSend = { ...editedItem.value };
-
-  if (
-    dataToSend.timeOverdue !== undefined &&
-    dataToSend.timeOverdue !== null &&
-    dataToSend.timeOverdue !== ""
-  ) {
-    dataToSend.timeOverdue = parseFloat(
-      dataToSend.timeOverdue.toString().replace(",", "."),
-    );
-  }
+  const dataToSend = {
+    id: editedItem.value.id || 1,
+    appName: editedItem.value.appName,
+    appLogo: editedItem.value.appLogo,
+    companyName: editedItem.value.companyName,
+    companyEmail: editedItem.value.companyEmail,
+    companyLogo: editedItem.value.companyLogo,
+    address: editedItem.value.address,
+    smtpHost: editedItem.value.smtpHost,
+    smtpPort: editedItem.value.smtpPort ? parseInt(editedItem.value.smtpPort.toString(), 10) : null,
+    smtpEmail: editedItem.value.smtpEmail,
+    smtpPassword: editedItem.value.smtpPassword,
+    allowHolidayAttendance: Boolean(editedItem.value.allowHolidayAttendance),
+    saveAttendancePhoto: Boolean(editedItem.value.saveAttendancePhoto),
+    requireAttendancePhoto: Boolean(editedItem.value.requireAttendancePhoto),
+    storageDriver: editedItem.value.storageDriver || "local",
+  };
 
   appConfigService()
     .update(dataToSend)
@@ -392,6 +454,7 @@ async function handleSave() {
 
 function uploadLogo(title: string) {
   dialogTitle.value = title;
+  file.value = null;
   dialog.value = true;
 }
 

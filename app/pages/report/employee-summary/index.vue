@@ -34,6 +34,11 @@
         <span>{{ value || '-' }}</span>
       </template>
 
+      <!-- Custom render for Hari Kerja -->
+      <template #item.countHariKerja="{ value }">
+        <span>{{ value }}</span>
+      </template>
+
       <!-- Custom render for Hadir -->
       <template #item.countHadir="{ value }">
         <span>{{ value }}</span>
@@ -97,9 +102,10 @@
       <!-- Table Summary Footer Row -->
       <template #tfoot>
         <tr v-if="summaryData" class="border-t border-slate-200 dark:border-slate-700 font-semibold text-sm">
-          <td colspan="4" class="px-3.5 py-2 text-left">
+          <td colspan="3" class="px-3.5 py-2 text-left">
             TOTAL ({{ summaryData.totalEmployee }} PEGAWAI)
           </td>
+          <td class="px-3.5 py-2 text-center">{{ summaryData.totalHariKerja }}</td>
           <td class="px-3.5 py-2 text-center">{{ summaryData.totalHadir }}</td>
           <td class="px-3.5 py-2 text-center">{{ summaryData.totalTerlambat }}</td>
           <td class="px-3.5 py-2 text-center">
@@ -185,10 +191,16 @@ const getFirstDayOfMonthString = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 };
 
+ const getLastDayOfMonthString = () => {
+  const d = new Date();
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+};
+
 const headers = ref<any[]>([
   { key: "nip", title: "NIP", sortable: true, align: "center" },
   { key: "name", title: "Nama Pegawai", sortable: true, align: "left" },
-  { key: "institutionName", title: "Institusi", sortable: true, align: "left" },
+  { key: "countHariKerja", title: "Hari Kerja", sortable: true, align: "center" },
   { key: "countHadir", title: "Hadir", sortable: true, align: "center" },
   { key: "countTerlambat", title: "Jumlah Telat", sortable: true, align: "center" },
   { key: "totalLateMinutes", title: "Durasi Telat", sortable: true, align: "center" },
@@ -227,7 +239,7 @@ const filterSchema = computed(() => [
     modalLabel: "Tanggal Akhir",
     type: "date" as const,
     placeholder: "Tanggal Akhir",
-    default: getTodayDateString(),
+    default: getLastDayOfMonthString(),
     colModalMd: 6,
     showInModal: true,
     showAboveTable: true,
@@ -308,7 +320,7 @@ async function loadAll() {
       institutionId: institutionId,
       departmentId: departmentId,
       startDate: startDate ? startDate : getFirstDayOfMonthString(),
-      endDate: endDate ? endDate : getTodayDateString(),
+      endDate: endDate ? endDate : getLastDayOfMonthString(),
     })
     .then((res: any) => {
       isLoading.value = false;
@@ -340,7 +352,7 @@ async function fetchFullDataForExportOrPrint() {
     institutionId: institutionId,
     departmentId: departmentId,
     startDate: startDate ? startDate : getFirstDayOfMonthString(),
-    endDate: endDate ? endDate : getTodayDateString(),
+    endDate: endDate ? endDate : getLastDayOfMonthString(),
     ignorePaging: true,
   });
 
@@ -402,7 +414,7 @@ async function handleExportExcel() {
     const exportData = empList.map((e: any) => ({
       nip: e.nip,
       nama: e.name,
-      institusi: e.institutionName || "-",
+      hariKerja: e.countHariKerja ?? "-",
       hadir: e.countHadir,
       terlambat: e.countTerlambat > 0 ? `${e.countTerlambat}` : "-",
       durasiTerlambat: e.totalLateMinutes > 0 ? `${e.totalLateHours}j ${e.totalLateRemainingMinutes}m` : "-",
@@ -429,8 +441,9 @@ async function handleExportExcel() {
       },
       summaryData: {
         label: `TOTAL (${fullData.summary?.totalEmployee || 0} PEGAWAI)`,
-        labelColspan: 3,
+        labelColspan: 2,
         data: {
+          hariKerja: fullData.summary?.totalHariKerja || 0,
           hadir: fullData.summary?.totalHadir || 0,
           terlambat: `${fullData.summary?.totalTerlambat || 0}`,
           durasiTerlambat: fullData.summary?.totalLateMinutes > 0 ? `${fullData.summary.totalLateHours}j ${fullData.summary.totalLateRemainingMinutes}m` : "-",
@@ -448,7 +461,7 @@ async function handleExportExcel() {
       columns: [
         { header: "NIP", key: "nip", width: 16 },
         { header: "NAMA PEGAWAI", key: "nama", width: 25 },
-        { header: "INSTITUSI", key: "institusi", width: 28 },
+        { header: "HARI KERJA", key: "hariKerja", width: 12 },
         { header: "HADIR", key: "hadir", width: 10 },
         { header: "JML TELAT", key: "terlambat", width: 12 },
         { header: "DURASI TELAT", key: "durasiTerlambat", width: 16 },

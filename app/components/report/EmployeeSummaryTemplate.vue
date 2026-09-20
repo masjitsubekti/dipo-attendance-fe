@@ -11,9 +11,9 @@
     <table class="summary-table">
       <colgroup>
         <col style="width: 3%;" />  <!-- NO -->
-        <col style="width: 9%;" />  <!-- NIP -->
-        <col style="width: 17%;" /> <!-- NAMA PEGAWAI -->
-        <col style="width: 15%;" /> <!-- INSTITUSI -->
+        <col style="width: 10%;" /> <!-- NIP -->
+        <col style="width: 24%;" /> <!-- NAMA PEGAWAI -->
+        <col style="width: 5%;" />  <!-- HARI KERJA -->
         <col style="width: 5%;" />  <!-- HADIR -->
         <col style="width: 5%;" />  <!-- JML TELAT -->
         <col style="width: 7%;" />  <!-- DURASI TELAT -->
@@ -32,7 +32,7 @@
           <th>NO</th>
           <th>NIP</th>
           <th>NAMA PEGAWAI</th>
-          <th>INSTITUSI</th>
+          <th>HARI KERJA</th>
           <th>HADIR</th>
           <th>JML TELAT</th>
           <th>DURASI TELAT</th>
@@ -52,7 +52,7 @@
           <td class="text-center">{{ Number(idx) + 1 }}</td>
           <td class="text-center font-mono">{{ emp.nip }}</td>
           <td class="text-left uppercase">{{ emp.name }}</td>
-          <td class="text-left uppercase">{{ emp.institutionName || '-' }}</td>
+          <td class="text-center">{{ emp.countHariKerja ?? '-' }}</td>
           <td class="text-center">{{ emp.countHadir }}</td>
           <td class="text-center">{{ emp.countTerlambat > 0 ? `${emp.countTerlambat}` : '-' }}</td>
           <td class="text-center font-mono">{{ emp.totalLateMinutes > 0 ? `${emp.totalLateHours}j ${emp.totalLateRemainingMinutes}m` : '-' }}</td>
@@ -69,7 +69,8 @@
       </tbody>
       <tfoot v-if="data.summary">
         <tr class="summary-footer-row font-bold">
-          <td colspan="4" class="text-left font-extrabold">TOTAL ({{ data.summary.totalEmployee }} PEGAWAI)</td>
+          <td colspan="3" class="text-left font-extrabold">TOTAL ({{ data.summary.totalEmployee }} PEGAWAI)</td>
+          <td class="text-center">{{ data.summary.totalHariKerja }}</td>
           <td class="text-center">{{ data.summary.totalHadir }}</td>
           <td class="text-center">{{ data.summary.totalTerlambat }}</td>
           <td class="text-center font-mono">{{ data.summary.totalLateMinutes > 0 ? `${data.summary.totalLateHours}j ${data.summary.totalLateRemainingMinutes}m` : '-' }}</td>

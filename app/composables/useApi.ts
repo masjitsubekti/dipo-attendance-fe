@@ -24,23 +24,22 @@ export function useApi() {
 
             options.headers = headers;
         },
-        async onResponseError({ response, options }: any) {
+        async onResponseError({ response, options, error }: any) {
             if (options?.ignoreError) return;
 
-            const status = response.status;
-            const error = response._data?.error || response._data?.message;
+            const status = response?.status || 0;
+            const errMsg = response?._data?.error || response?._data?.message || error?.message || "Unable to connect to server";
 
             if (status === 401) {
                 authStore.logout();
-                // toast.error("Session Expired", "Please login again.");
             } else if (status === 403) {
                 toast.error("Access Denied", "You don't have permission.");
             } else if (status === 422) {
-                toast.warning("Validation Error", error);
-            } else if (status >= 500) {
-                useSwal().toast(error, "error");
+                toast.warning("Validation Error", errMsg);
+            } else if (status >= 500 || status === 0) {
+                useSwal().toast(errMsg, "error");
             } else {
-                toast.error("Error", error);
+                toast.error("Error", errMsg);
             }
         },
     });

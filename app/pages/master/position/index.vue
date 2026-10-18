@@ -18,7 +18,14 @@
       @editItem="editItem"
       @deleteItem="deleteItem"
       @exportItem="exportItem"
-    />
+    >
+      <template v-slot:[`item.institutionName`]="{ item, value }">
+        <UiBadge v-if="!item.institutionId" variant="primary">
+          Global / Yayasan
+        </UiBadge>
+        <span v-else>{{ value || '-' }}</span>
+      </template>
+    </TableList>
 
     <UiModal v-model="showDialog" :title="dialogTitle" persistent size="md">
       <UiForm ref="formRef">
@@ -44,7 +51,7 @@
             </UiCol>
           </UiRow>
 
-          <UiRow>
+          <UiRow v-if="authStore.showInstitutionField">
             <UiCol cols="12" md="12">
               <UiAutocomplete
                 v-model="editedItem.institutionId"
@@ -73,6 +80,8 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthStore } from "~/stores/auth";
+import { usePermission } from "~/composables/usePermission";
 import positionService from "@/services/position.service";
 import institutionService from "@/services/institution.service";
 import { useSwal } from "~/composables/useSwal";
@@ -89,6 +98,8 @@ useHead({
   title: pageTitle,
 });
 
+const authStore = useAuthStore();
+const { canModifyItem } = usePermission();
 const route = useRoute();
 const swal = useSwal();
 const positionSvc = positionService();
@@ -116,7 +127,10 @@ const defaultItem = {
   institutionId: null as number | null,
 };
 
-const editedItem: any = ref({ ...defaultItem });
+const editedItem: any = ref({
+  ...defaultItem,
+  institutionId: authStore.userInstitutionId ?? null,
+});
 
 const tableData: any = ref({
   items: [],
@@ -144,24 +158,37 @@ const headers = computed(() => [
   { key: "actions", title: "Aksi", align: "center", width: "10%" },
 ]);
 
-const filterSchema = computed(() => [
-  {
-    name: "institutionId",
-    type: "autocomplete" as const,
-    items: "listInstitution",
-    placeholder: "Pilih Institusi",
-    colMd: 4,
-    valueKey: "id",
-    textKey: "name",
-  },
-  { name: "", type: "text" as const, colMd: 4 },
-  {
-    name: "q",
-    type: "search" as const,
-    placeholder: "Cari (Tekan Enter)",
-    colMd: 4,
-  },
-]);
+const filterSchema = computed(() => {
+  const schema: any[] = [];
+
+  if (authStore.showInstitutionField) {
+    schema.push({
+      name: "institutionId",
+      type: "autocomplete" as const,
+      items: "listInstitution",
+      placeholder: "Pilih Institusi",
+      colMd: 4,
+      valueKey: "id",
+      textKey: "name",
+    });
+  }
+
+  schema.push(
+    {
+      name: "",
+      type: "text" as const,
+      colMd: authStore.showInstitutionField ? 4 : 8,
+    },
+    {
+      name: "q",
+      type: "search" as const,
+      placeholder: "Cari (Tekan Enter)",
+      colMd: 4,
+    }
+  );
+
+  return schema;
+});
 
 const actions = computed(() => [
   {
@@ -170,6 +197,7 @@ const actions = computed(() => [
     color: "#f59e0b",
     tooltip: "Ubah",
     emit: "editItem",
+    show: (item: any) => canModifyItem(item),
   },
   {
     key: "delete",
@@ -177,6 +205,7 @@ const actions = computed(() => [
     color: "#ef4444",
     tooltip: "Hapus",
     emit: "deleteItem",
+    show: (item: any) => canModifyItem(item),
   },
 ]);
 
@@ -203,6 +232,8 @@ onMounted(() => {
 });
 
 async function loadInstitutions() {
+  if (!authStore.showInstitutionField) return;
+
   await institutionSvc
     .retrieveAll()
     .then((res: any) => {
@@ -218,6 +249,9 @@ async function loadInstitutions() {
 async function loadAll() {
   const { pageNumber, pageSize, q, sortBy, sortType, institutionId } = route.query;
   isLoading.value = true;
+
+  const targetInstitutionId = authStore.userInstitutionId ?? institutionId;
+
   await positionSvc
     .retrieve({
       q: q,
@@ -225,7 +259,7 @@ async function loadAll() {
       pageNumber: pageNumber ? pageNumber : 1,
       sortBy: sortBy,
       sortType: sortType,
-      institutionId: institutionId,
+      institutionId: targetInstitutionId,
     })  
     .then((res: any) => {
       isLoading.value = false;
@@ -241,10 +275,11 @@ async function loadAll() {
 
 function addItem() {
   isEditing.value = false;
+  formRef.value?.resetValidation();
   editedItem.value = {
     ...defaultItem,
+    institutionId: authStore.userInstitutionId ?? null,
   };
-  formRef.value?.reset();
   showDialog.value = true;
 }
 
@@ -254,7 +289,7 @@ async function editItem(row: any) {
     if (res.data?.id) {
       editedItem.value = {
         ...res.data,
-        institutionId: res.data.institutionId ?? null,
+        institutionId: res.data.institutionId ?? (authStore.userInstitutionId ?? null),
       };
       isEditing.value = true;
       showDialog.value = true;
@@ -266,7 +301,10 @@ function handleClose() {
   isLoadingSave.value = false;
   isEditing.value = false;
   formRef.value?.reset();
-  editedItem.value = { ...defaultItem };
+  editedItem.value = {
+    ...defaultItem,
+    institutionId: authStore.userInstitutionId ?? null,
+  };
   showDialog.value = false;
 }
 
@@ -315,13 +353,15 @@ async function deleteItem(row: any) {
 
 async function exportItem() {
   const { q, sortBy, sortType, institutionId } = route.query;
+  const targetInstitutionId = authStore.userInstitutionId ?? institutionId;
+
   const response: any = await positionSvc.retrieve({
     q: q,
     pageSize: 1,
     pageNumber: 1,
     sortBy: sortBy,
     sortType: sortType,
-    institutionId: institutionId,
+    institutionId: targetInstitutionId,
     ignorePaging: true,
   });
   const data = response.data?.items || [];
@@ -336,8 +376,9 @@ async function exportItem() {
     columns: [
       { header: "Kode", key: "code", width: 20 },
       { header: "Nama Jabatan", key: "name", width: 40 },
-      { header: "Institusi", key: "institutionNname", width: 40 },
+      { header: "Institusi", key: "institutionName", width: 40 },
     ],
   });
 }
 </script>
+

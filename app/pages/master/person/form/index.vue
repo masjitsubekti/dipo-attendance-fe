@@ -40,7 +40,7 @@
           </UiRow>
 
           <UiRow>
-            <UiCol cols="12" md="6">
+            <UiCol v-if="authStore.showInstitutionField" cols="12" md="6">
               <UiAutocomplete
                 v-model="form.institutionId"
                 label="Institusi / Sekolah"
@@ -48,12 +48,12 @@
                 :options="listInstitution"
                 item-value="id"
                 item-title="name"
-                :rules="[(v) => !!v || 'Wajib diisi']"
+                :rules="authStore.showInstitutionField ? [(v) => !!v || 'Wajib diisi'] : []"
                 required
                 clearable
               />
             </UiCol>
-            <UiCol cols="12" md="6">
+            <UiCol cols="12" :md="authStore.showInstitutionField ? 6 : 12">
               <UiAutocomplete
                 v-model="form.departmentId"
                 label="Departemen / Divisi"
@@ -177,6 +177,7 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthStore } from "~/stores/auth";
 import personService from "@/services/person.service";
 import institutionService from "@/services/institution.service";
 import positionService from "@/services/position.service";
@@ -194,6 +195,7 @@ useHead({
   title: pageTitle,
 });
 
+const authStore = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 const swal = useSwal();
@@ -246,7 +248,10 @@ const defaultItem = {
   status: "aktif",
 };
 
-const form: any = ref({ ...defaultItem });
+const form: any = ref({
+  ...defaultItem,
+  institutionId: authStore.userInstitutionId ?? null,
+});
 
 onMounted(async () => {
   await loadOptions();
@@ -256,17 +261,24 @@ onMounted(async () => {
 });
 
 async function loadOptions() {
-  await Promise.all([
-    institutionSvc.retrieveAll().then((res: any) => {
-      if (res.data) listInstitution.value = res.data;
-    }).catch(() => {}),
-    positionSvc.retrieveAll().then((res: any) => {
+  const promises: Promise<any>[] = [
+    positionSvc.retrieveAll({ institutionId: authStore.userInstitutionId }).then((res: any) => {
       if (res.data) listPosition.value = res.data;
     }).catch(() => {}),
-    departmentSvc.retrieveAll().then((res: any) => {
+    departmentSvc.retrieveAll({ institutionId: authStore.userInstitutionId }).then((res: any) => {
       if (res.data) listDepartment.value = res.data;
     }).catch(() => {}),
-  ]);
+  ];
+
+  if (authStore.showInstitutionField) {
+    promises.push(
+      institutionSvc.retrieveAll().then((res: any) => {
+        if (res.data) listInstitution.value = res.data;
+      }).catch(() => {})
+    );
+  }
+
+  await Promise.all(promises);
 }
 
 async function loadData(id: any) {
@@ -274,7 +286,7 @@ async function loadData(id: any) {
     if (res.data) {
       form.value = {
         ...res.data,
-        institutionId: res.data.institutionId ?? null,
+        institutionId: res.data.institutionId ?? (authStore.userInstitutionId ?? null),
         positionId: res.data.positionId ?? null,
         departmentId: res.data.departmentId ?? null,
         birthDate: res.data.birthDate ? formatDate(res.data.birthDate, 'YYYY-MM-DD') : null,

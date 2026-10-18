@@ -14,7 +14,7 @@
 
     <div class="space-y-4">
       <UiRow>
-        <UiCol :cols="12" md="3">
+        <UiCol v-if="authStore.showInstitutionField" :cols="12" md="3">
           <UiAutocomplete
             v-model="filterLocal.institutionId"
             :options="listInstitution"
@@ -26,7 +26,7 @@
           />
         </UiCol>
 
-        <UiCol :cols="12" md="3">
+        <UiCol :cols="12" :md="authStore.showInstitutionField ? 3 : 4">
           <UiAutocomplete
             v-model="filterLocal.departmentId"
             :options="listDepartment"
@@ -38,7 +38,7 @@
           />
         </UiCol>
 
-        <UiCol :cols="12" md="3">
+        <UiCol :cols="12" :md="authStore.showInstitutionField ? 3 : 4">
           <UiAutocomplete
             v-model="filterLocal.positionId"
             :options="listPosition"
@@ -50,7 +50,7 @@
           />
         </UiCol>
 
-        <UiCol :cols="12" md="3">
+        <UiCol :cols="12" :md="authStore.showInstitutionField ? 3 : 4">
           <UiInput
             v-model="filterLocal.q"
             placeholder="Cari NIP / Nama (Enter)"
@@ -173,6 +173,7 @@ import personService from '@/services/person.service'
 import institutionService from '@/services/institution.service'
 import departmentService from '@/services/department.service'
 import positionService from '@/services/position.service'
+import { useAuthStore } from '@/stores/auth'
 
 interface Props {
   modelValue: boolean
@@ -195,6 +196,7 @@ const emit = defineEmits<{
   (e: 'add-to-queue', items: any[]): void
 }>()
 
+const authStore = useAuthStore()
 const personSvc = personService()
 const instSvc = institutionService()
 const deptSvc = departmentService()
@@ -244,7 +246,9 @@ const dialogTitle = computed(() => {
 const headers = computed(() => [
   { key: 'nip', label: 'NIP', sortable: true },
   { key: 'name', label: 'Nama', sortable: true },
-  { key: 'institutionName', label: 'Institusi', sortable: true },
+  ...(authStore.showInstitutionField
+    ? [{ key: 'institutionName', label: 'Institusi', sortable: true }]
+    : []),
   { key: 'departmentName', label: 'Departemen', sortable: true },
   { key: 'positionName', label: 'Jabatan', sortable: true },
   { key: 'status', label: 'Status', sortable: true },
@@ -277,7 +281,7 @@ function initFilter() {
   filterLocal.value.q = props.search || ''
   filterLocal.value.pageNumber = 1
   filterLocal.value.pageSize = 10
-  filterLocal.value.institutionId = null
+  filterLocal.value.institutionId = authStore.userInstitutionId ?? null
   filterLocal.value.departmentId = null
   filterLocal.value.positionId = null
   filterLocal.value.sortBy = 'name'
@@ -288,19 +292,24 @@ function initFilter() {
 }
 
 async function loadDropdowns() {
-  instSvc.all().then((res: any) => {
-    listInstitution.value = res.data || []
-  })
-  deptSvc.all().then((res: any) => {
+  if (authStore.showInstitutionField) {
+    instSvc.all().then((res: any) => {
+      listInstitution.value = res.data || []
+    })
+  }
+  const instId = authStore.userInstitutionId ?? filterLocal.value.institutionId
+  deptSvc.all({ institutionId: instId }).then((res: any) => {
     listDepartment.value = res.data || []
   })
-  posSvc.all().then((res: any) => {
+  posSvc.all({ institutionId: instId }).then((res: any) => {
     listPosition.value = res.data || []
   })
 }
 
 function loadData() {
   isLoading.value = true
+
+  const targetInstitutionId = authStore.userInstitutionId ?? filterLocal.value.institutionId
 
   personSvc
     .retrieve({
@@ -309,7 +318,7 @@ function loadData() {
       pageNumber: filterLocal.value.pageNumber,
       sortBy: filterLocal.value.sortBy,
       sortType: filterLocal.value.sortType,
-      institutionId: filterLocal.value.institutionId,
+      institutionId: targetInstitutionId,
       departmentId: filterLocal.value.departmentId,
       positionId: filterLocal.value.positionId,
     })

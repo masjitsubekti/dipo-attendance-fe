@@ -19,6 +19,13 @@
       @deleteItem="deleteItem"
       @exportItem="exportItem"
     >
+      <template v-slot:[`item.institutionName`]="{ item, value }">
+        <UiBadge v-if="!item.institutionId" variant="primary">
+          Global / Yayasan
+        </UiBadge>
+        <span v-else>{{ value || '-' }}</span>
+      </template>
+
       <template v-slot:['item.isActive']="{ value }">
         <UiBadge :variant="value || value === 1 ? 'success' : 'danger'">
           {{ value || value === 1 ? 'Aktif' : 'Nonaktif' }}
@@ -29,6 +36,8 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthStore } from "~/stores/auth";
+import { usePermission } from "~/composables/usePermission";
 import workShiftService from "@/services/work-shift.service";
 import institutionService from "@/services/institution.service";
 import { useSwal } from "~/composables/useSwal";
@@ -45,6 +54,8 @@ useHead({
   title: pageTitle,
 });
 
+const authStore = useAuthStore();
+const { canModifyItem } = usePermission();
 const route = useRoute();
 const router = useRouter();
 const swal = useSwal();
@@ -55,7 +66,7 @@ const { isExporting, exportToExcel } = useExcelExport();
 const isLoading = ref(false);
 const itemPerPage = ref(10);
 
-const listInstitution: any = ref([]);
+const listInstitution = ref([]);
 
 const tableData: any = ref({
   items: [],
@@ -80,24 +91,37 @@ const headers = computed(() => [
   { key: "actions", title: "Aksi", align: "center", width: "10%" },
 ]);
 
-const filterSchema = computed(() => [
-  {
-    name: "institutionId",
-    type: "autocomplete" as const,
-    items: "listInstitution",
-    placeholder: "Pilih Institusi",
-    colMd: 3,
-    valueKey: "id",
-    textKey: "name",
-  },
-  { name: "", type: "text" as const, colMd: 5 },
-  {
-    name: "q",
-    type: "search" as const,
-    placeholder: "Cari Kode / Nama Shift...",
-    colMd: 4,
-  },
-]);
+const filterSchema = computed(() => {
+  const schema: any[] = [];
+
+  if (authStore.showInstitutionField) {
+    schema.push({
+      name: "institutionId",
+      type: "autocomplete" as const,
+      items: "listInstitution",
+      placeholder: "Pilih Institusi",
+      colMd: 3,
+      valueKey: "id",
+      textKey: "name",
+    });
+  }
+
+  schema.push(
+    {
+      name: "",
+      type: "text" as const,
+      colMd: authStore.showInstitutionField ? 5 : 8,
+    },
+    {
+      name: "q",
+      type: "search" as const,
+      placeholder: "Cari Kode / Nama Shift...",
+      colMd: 4,
+    }
+  );
+
+  return schema;
+});
 
 const actions = computed(() => [
   {
@@ -106,6 +130,7 @@ const actions = computed(() => [
     color: "#f59e0b",
     tooltip: "Ubah",
     emit: "editItem",
+    show: (item: any) => canModifyItem(item),
   },
   {
     key: "delete",
@@ -113,6 +138,7 @@ const actions = computed(() => [
     color: "#ef4444",
     tooltip: "Hapus",
     emit: "deleteItem",
+    show: (item: any) => canModifyItem(item),
   },
 ]);
 
@@ -139,6 +165,8 @@ onMounted(() => {
 });
 
 async function loadOptions() {
+  if (!authStore.showInstitutionField) return;
+
   await institutionSvc
     .retrieveAll()
     .then((res: any) => {
@@ -151,6 +179,7 @@ async function loadAll() {
   const { pageNumber, pageSize, q, sortBy, sortType, institutionId } = route.query;
 
   isLoading.value = true;
+  const targetInstitutionId = authStore.userInstitutionId ?? institutionId;
 
   await workShiftSvc
     .retrieve({
@@ -159,7 +188,7 @@ async function loadAll() {
       pageNumber: pageNumber ? pageNumber : 1,
       sortBy: sortBy,
       sortType: sortType,
-      institutionId: institutionId,
+      institutionId: targetInstitutionId,
     })
     .then((res: any) => {
       tableData.value = {
@@ -205,6 +234,7 @@ async function deleteItem(row: any) {
 
 async function exportItem() {
   const { q, sortBy, sortType, institutionId } = route.query;
+  const targetInstitutionId = authStore.userInstitutionId ?? institutionId;
 
   const response: any = await workShiftSvc.retrieve({
     q: q,
@@ -212,7 +242,7 @@ async function exportItem() {
     pageNumber: 1,
     sortBy: sortBy,
     sortType: sortType,
-    institutionId: institutionId,
+    institutionId: targetInstitutionId,
     ignorePaging: true,
   });
 
@@ -236,3 +266,4 @@ async function exportItem() {
   });
 }
 </script>
+

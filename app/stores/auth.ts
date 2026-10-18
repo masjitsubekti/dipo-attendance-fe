@@ -52,6 +52,8 @@ export const useAuthStore = defineStore("auth", {
         getMenus: (state) => state.menus,
         getPermissions: (state) => state.permissions,
         isLoggedIn: (state) => state.isAuthenticated && !!state.token,
+        userInstitutionId: (state) => state.user?.institutionId ?? null,
+        showInstitutionField: (state) => !state.user?.institutionId,
         getUserRole: (state) => {
             if (state.user?.role && typeof state.user.role === 'object') {
                 // @ts-ignore

@@ -42,7 +42,7 @@
                 :rules="[(v) => !!v || 'Wajib diisi']"
               />
             </UiCol>
-            <UiCol cols="12" md="6">
+            <UiCol v-if="authStore.showInstitutionField" cols="12" md="6">
               <UiAutocomplete
                 v-model="form.institutionId"
                 label="Institusi / Sekolah"
@@ -148,6 +148,7 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthStore } from "~/stores/auth";
 import workShiftService from "@/services/work-shift.service";
 import workTimeService from "@/services/work-time.service";
 import institutionService from "@/services/institution.service";
@@ -164,6 +165,7 @@ useHead({
   title: pageTitle,
 });
 
+const authStore = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 const swal = useSwal();
@@ -225,7 +227,10 @@ const defaultItem = {
   details: defaultDetails,
 };
 
-const form: any = ref({ ...defaultItem });
+const form: any = ref({
+  ...defaultItem,
+  institutionId: authStore.userInstitutionId ?? null,
+});
 
 onMounted(async () => {
   await loadOptions();
@@ -235,14 +240,21 @@ onMounted(async () => {
 });
 
 async function loadOptions() {
-  await Promise.all([
-    institutionSvc.retrieveAll().then((res: any) => {
-      if (res.data) listInstitution.value = res.data;
-    }).catch(() => {}),
+  const promises: Promise<any>[] = [
     workTimeSvc.retrieveAll().then((res: any) => {
       if (res.data) listWorkTime.value = res.data;
     }).catch(() => {}),
-  ]);
+  ];
+
+  if (authStore.showInstitutionField) {
+    promises.push(
+      institutionSvc.retrieveAll().then((res: any) => {
+        if (res.data) listInstitution.value = res.data;
+      }).catch(() => {})
+    );
+  }
+
+  await Promise.all(promises);
 }
 
 function onWorkTimeChange(detailRow: any, workTimeId: any) {
@@ -307,7 +319,7 @@ async function loadData(id: any) {
 
         form.value = {
           ...res.data,
-          institutionId: res.data.institutionId ?? res.data.institution_id ?? null,
+          institutionId: res.data.institutionId ?? res.data.institution_id ?? (authStore.userInstitutionId ?? null),
           isActive: res.data.isActive ?? res.data.is_active ?? true,
           details: mergedDetails,
         };

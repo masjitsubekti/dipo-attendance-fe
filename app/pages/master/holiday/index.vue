@@ -32,6 +32,14 @@
           {{ value ? 'Nasional' : 'Lokal / Khusus' }}
         </UiBadge>
       </template>
+
+      <!-- Custom render for institutionName -->
+      <template v-slot:[`item.institutionName`]="{ item, value }">
+        <UiBadge v-if="item.isNational || !item.institutionId" variant="primary">
+          Nasional / Semua
+        </UiBadge>
+        <span v-else>{{ value || '-' }}</span>
+      </template>
     </TableList>
 
     <UiModal v-model="showDialog" :title="dialogTitle" persistent size="md">
@@ -63,7 +71,7 @@
             </UiCol>
           </UiRow>
 
-          <UiRow>
+          <UiRow v-if="authStore.showInstitutionField">
             <UiCol cols="12" md="12">
               <UiAutocomplete
                 v-model="editedItem.institutionId"
@@ -78,14 +86,14 @@
           </UiRow>
 
           <UiRow>
-            <UiCol cols="12" md="6">
+            <UiCol cols="12" :md="authStore.showInstitutionField ? 6 : 12">
               <UiInput
                 v-model="editedItem.type"
                 label="Jenis / Kategori Libur"
                 placeholder="Contoh: Nasional, Cuti Bersama"
               />
             </UiCol>
-            <UiCol cols="12" md="6">
+            <UiCol v-if="authStore.showInstitutionField" cols="12" md="6">
               <UiSwitch
                 v-model="editedItem.isNational"
                 label="Libur Nasional"
@@ -110,6 +118,8 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthStore } from "~/stores/auth";
+import { usePermission } from "~/composables/usePermission";
 import holidayService from "@/services/holiday.service";
 import institutionService from "@/services/institution.service";
 import { useSwal } from "~/composables/useSwal";
@@ -127,6 +137,8 @@ useHead({
   title: pageTitle,
 });
 
+const authStore = useAuthStore();
+const { canModifyItem } = usePermission();
 const route = useRoute();
 const swal = useSwal();
 const holidaySvc = holidayService();
@@ -162,7 +174,11 @@ const defaultItem = {
   isNational: true,
 };
 
-const editedItem: any = ref({ ...defaultItem });
+const editedItem: any = ref({
+  ...defaultItem,
+  institutionId: authStore.userInstitutionId ?? null,
+  isNational: !authStore.userInstitutionId,
+});
 
 const tableData: any = ref({
   items: [],
@@ -192,33 +208,47 @@ const headers = computed(() => [
   { key: "actions", title: "Aksi", align: "center", width: "10%" },
 ]);
 
-const filterSchema = computed(() => [
-  {
-    name: "institutionId",
-    type: "autocomplete" as const,
-    items: "listInstitution",
-    placeholder: "Pilih Institusi",
-    colMd: 3,
-    valueKey: "id",
-    textKey: "name",
-  },
-  {
+const filterSchema = computed(() => {
+  const schema: any[] = [];
+
+  if (authStore.showInstitutionField) {
+    schema.push({
+      name: "institutionId",
+      type: "autocomplete" as const,
+      items: "listInstitution",
+      placeholder: "Pilih Institusi",
+      colMd: 3,
+      valueKey: "id",
+      textKey: "name",
+    });
+  }
+
+  schema.push({
     name: "isNational",
     type: "autocomplete" as const,
     items: "isNationalOptions",
     placeholder: "Pilih Status Libur",
-    colMd: 3,
+    colMd: authStore.showInstitutionField ? 3 : 4,
     valueKey: "id",
     textKey: "name",
-  },
-  { name: "", type: "text" as const, colMd: 2 },
-  {
-    name: "q",
-    type: "search" as const,
-    placeholder: "Cari (Tekan Enter)",
-    colMd: 4,
-  },
-]);
+  });
+
+  schema.push(
+    {
+      name: "",
+      type: "text" as const,
+      colMd: authStore.showInstitutionField ? 2 : 4,
+    },
+    {
+      name: "q",
+      type: "search" as const,
+      placeholder: "Cari (Tekan Enter)",
+      colMd: 4,
+    }
+  );
+
+  return schema;
+});
 
 const actions = computed(() => [
   {
@@ -227,6 +257,7 @@ const actions = computed(() => [
     color: "#f59e0b",
     tooltip: "Ubah",
     emit: "editItem",
+    show: (item: any) => canModifyItem(item) && !item.isNational,
   },
   {
     key: "delete",
@@ -234,6 +265,7 @@ const actions = computed(() => [
     color: "#ef4444",
     tooltip: "Hapus",
     emit: "deleteItem",
+    show: (item: any) => canModifyItem(item) && !item.isNational,
   },
 ]);
 
@@ -260,6 +292,8 @@ onMounted(() => {
 });
 
 async function loadInstitutions() {
+  if (!authStore.showInstitutionField) return;
+
   await institutionSvc
     .retrieveAll()
     .then((res: any) => {
@@ -275,6 +309,9 @@ async function loadInstitutions() {
 async function loadAll() {
   const { pageNumber, pageSize, q, sortBy, sortType, isNational, institutionId } = route.query;
   isLoading.value = true;
+
+  const targetInstitutionId = authStore.userInstitutionId ?? institutionId;
+
   await holidaySvc
     .retrieve({
       q: q,
@@ -283,7 +320,7 @@ async function loadAll() {
       sortBy: sortBy,
       sortType: sortType,
       isNational: isNational || undefined,
-      institutionId: institutionId,
+      institutionId: targetInstitutionId,
     })
     .then((res: any) => {
       isLoading.value = false;
@@ -299,11 +336,13 @@ async function loadAll() {
 
 function addItem() {
   isEditing.value = false;
+  formRef.value?.resetValidation();
   editedItem.value = {
     ...defaultItem,
+    institutionId: authStore.userInstitutionId ?? null,
+    isNational: !authStore.userInstitutionId,
     date: new Date().toISOString().substring(0, 10),
   };
-  formRef.value?.reset();
   showDialog.value = true;
 }
 
@@ -313,7 +352,7 @@ async function editItem(row: any) {
     if (res.data?.id) {
       editedItem.value = {
         ...res.data,
-        institutionId: res.data.institutionId ?? null,
+        institutionId: res.data.institutionId ?? (authStore.userInstitutionId ?? null),
         date: res.data.date ? formatDate(res.data.date, 'YYYY-MM-DD') : '',
         isNational: Boolean(res.data.isNational),
       };
@@ -327,7 +366,11 @@ function handleClose() {
   isLoadingSave.value = false;
   isEditing.value = false;
   formRef.value?.reset();
-  editedItem.value = { ...defaultItem };
+  editedItem.value = {
+    ...defaultItem,
+    institutionId: authStore.userInstitutionId ?? null,
+    isNational: !authStore.userInstitutionId,
+  };
   showDialog.value = false;
 }
 
@@ -377,6 +420,8 @@ async function deleteItem(row: any) {
 
 async function exportItem() {
   const { q, sortBy, sortType, isNational, institutionId } = route.query;
+  const targetInstitutionId = authStore.userInstitutionId ?? institutionId;
+
   const response: any = await holidaySvc.retrieve({
     q: q,
     pageSize: 1,
@@ -384,7 +429,7 @@ async function exportItem() {
     sortBy: sortBy,
     sortType: sortType,
     isNational: isNational || undefined,
-    institutionId: institutionId,
+    institutionId: targetInstitutionId,
     ignorePaging: true,
   });
   const data = response.data?.items || [];

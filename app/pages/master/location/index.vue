@@ -60,7 +60,7 @@
             </UiCol>
           </UiRow>
 
-          <UiRow>
+          <UiRow v-if="authStore.showInstitutionField">
             <UiCol cols="12" md="12">
               <UiAutocomplete
                 v-model="editedItem.institutionId"
@@ -70,7 +70,7 @@
                 item-value="id"
                 item-title="name"
                 required
-                :rules="[(v) => !!v || 'Wajib diisi']"
+                :rules="authStore.showInstitutionField ? [(v) => !!v || 'Wajib diisi'] : []"
                 clearable
               />
             </UiCol>
@@ -172,6 +172,8 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthStore } from "~/stores/auth";
+import { usePermission } from "~/composables/usePermission";
 import locationService from "@/services/location.service";
 import institutionService from "@/services/institution.service";
 import { useSwal } from "~/composables/useSwal";
@@ -185,6 +187,8 @@ definePageMeta({
 const pageTitle = "Lokasi Presensi";
 useHead({ title: pageTitle });
 
+const authStore = useAuthStore();
+const { canModifyItem } = usePermission();
 const route = useRoute();
 const swal = useSwal();
 const locationSvc = locationService();
@@ -345,7 +349,10 @@ const defaultItem = {
   isActive: true,
 };
 
-const editedItem = ref<any>({ ...defaultItem });
+const editedItem = ref<any>({
+  ...defaultItem,
+  institutionId: authStore.userInstitutionId ?? null,
+});
 
 const tableData = ref<any>({
   items: [],
@@ -371,28 +378,41 @@ const headers = computed(() => [
   { key: "actions", title: "Aksi", align: "center", width: "10%" },
 ]);
 
-const filterSchema = computed(() => [
-  {
-    name: "institutionId",
-    type: "autocomplete" as const,
-    items: "listInstitution",
-    placeholder: "Pilih Institusi",
-    colMd: 3,
-    valueKey: "id",
-    textKey: "name",
-  },
-  { name: "", type: "text" as const, colMd: 5 },
-  {
-    name: "q",
-    type: "search" as const,
-    placeholder: "Cari (Tekan Enter)",
-    colMd: 4,
-  },
-]);
+const filterSchema = computed(() => {
+  const schema: any[] = [];
+
+  if (authStore.showInstitutionField) {
+    schema.push({
+      name: "institutionId",
+      type: "autocomplete" as const,
+      items: "listInstitution",
+      placeholder: "Pilih Institusi",
+      colMd: 3,
+      valueKey: "id",
+      textKey: "name",
+    });
+  }
+
+  schema.push(
+    {
+      name: "",
+      type: "text" as const,
+      colMd: authStore.showInstitutionField ? 5 : 8,
+    },
+    {
+      name: "q",
+      type: "search" as const,
+      placeholder: "Cari (Tekan Enter)",
+      colMd: 4,
+    }
+  );
+
+  return schema;
+});
 
 const actions = computed(() => [
-  { key: "edit", icon: "mdi-pencil", color: "#f59e0b", tooltip: "Ubah", emit: "editItem" },
-  { key: "delete", icon: "mdi-delete", color: "#ef4444", tooltip: "Hapus", emit: "deleteItem" },
+  { key: "edit", icon: "mdi-pencil", color: "#f59e0b", tooltip: "Ubah", emit: "editItem", show: (item: any) => canModifyItem(item) },
+  { key: "delete", icon: "mdi-delete", color: "#ef4444", tooltip: "Hapus", emit: "deleteItem", show: (item: any) => canModifyItem(item) },
 ]);
 
 const actionToolbars = computed(() => [
@@ -406,6 +426,7 @@ onMounted(() => {
 });
 
 async function loadAllInstitution() {
+  if (!authStore.showInstitutionField) return;
   await institutionSvc.retrieveAll()
     .then((res: any) => { if (res.data) listInstitution.value = res.data; })
     .catch((err: any) => console.error("Failed to load institutions", err));
@@ -414,8 +435,9 @@ async function loadAllInstitution() {
 async function loadAll() {
   const { pageNumber, pageSize, q, sortBy, sortType, institutionId } = route.query;
   isLoading.value = true;
+  const targetInstitutionId = authStore.userInstitutionId ?? institutionId;
   await locationSvc
-    .retrieve({ q, pageSize: pageSize || itemPerPage.value, pageNumber: pageNumber || 1, sortBy, sortType, institutionId })
+    .retrieve({ q, pageSize: pageSize || itemPerPage.value, pageNumber: pageNumber || 1, sortBy, sortType, institutionId: targetInstitutionId })
     .then((res: any) => {
       tableData.value = {
         items: res.data?.items ?? [],
@@ -428,8 +450,11 @@ async function loadAll() {
 
 function addItem() {
   isEditing.value = false;
-  editedItem.value = { ...defaultItem };
-  formRef.value?.reset();
+  formRef.value?.resetValidation();
+  editedItem.value = {
+    ...defaultItem,
+    institutionId: authStore.userInstitutionId ?? null,
+  };
   resetMapLayers();
   showDialog.value = true;
 }
@@ -441,6 +466,7 @@ async function editItem(row: any) {
     if (res.data?.id) {
       editedItem.value = {
         ...res.data,
+        institutionId: res.data.institutionId ?? (authStore.userInstitutionId ?? null),
         latitude: Number(res.data.latitude),
         longitude: Number(res.data.longitude),
         radiusMeter: Number(res.data.radiusMeter),
@@ -455,7 +481,10 @@ function handleClose() {
   isLoadingSave.value = false;
   isEditing.value = false;
   formRef.value?.reset();
-  editedItem.value = { ...defaultItem };
+  editedItem.value = {
+    ...defaultItem,
+    institutionId: authStore.userInstitutionId ?? null,
+  };
   resetMapLayers();
   showDialog.value = false;
 }
@@ -505,8 +534,9 @@ async function deleteItem(row: any) {
 
 async function exportItem() {
   const { q, sortBy, sortType, institutionId } = route.query;
+  const targetInstitutionId = authStore.userInstitutionId ?? institutionId;
   const response: any = await locationSvc.retrieve({
-    q, pageSize: 1, pageNumber: 1, sortBy, sortType, institutionId, ignorePaging: true,
+    q, pageSize: 1, pageNumber: 1, sortBy, sortType, institutionId: targetInstitutionId, ignorePaging: true,
   });
   const data = response.data?.items || [];
 

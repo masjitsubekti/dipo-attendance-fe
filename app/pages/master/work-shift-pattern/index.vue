@@ -9,7 +9,7 @@
       :tableData="tableData"
       :loading="isLoading"
       :filterSchema="filterSchema"
-      :filterList="{ listPerson, listShift }"
+      :filterList="{ listPerson, listShift, listInstitution }"
       :actions="actions"
       :actionToolbars="actionToolbars"
       :actionLoading="{ exportItem: isExporting }"
@@ -171,7 +171,10 @@
 import workShiftPatternService from "@/services/work-shift-pattern.service";
 import workShiftService from "@/services/work-shift.service";
 import personService from "@/services/person.service";
+import institutionService from "@/services/institution.service";
 import DialogPersonLookup from "@/components/dialog/PersonLookup.vue";
+import { useAuthStore } from "@/stores/auth";
+import { usePermission } from "@/composables/usePermission";
 import { useSwal } from "~/composables/useSwal";
 import { useExcelExport } from "~/composables/useExcelExport";
 
@@ -188,16 +191,20 @@ useHead({
 
 const route = useRoute();
 const swal = useSwal();
+const authStore = useAuthStore();
+const { canModifyItem } = usePermission();
 const { formatDate: formatCustomDate } = useFormat();
 const patternSvc = workShiftPatternService();
 const shiftSvc = workShiftService();
 const personSvc = personService();
+const institutionSvc = institutionService();
 const { isExporting, exportToExcel } = useExcelExport();
 
 const tableTitle = computed(() => "Daftar Penugasan Shift Pegawai");
 
 const listPerson: any = ref([]);
 const listShift: any = ref([]);
+const listInstitution: any = ref([]);
 const selectedPersons: any = ref([]);
 
 const isLoading = ref(false);
@@ -243,6 +250,9 @@ const selectedPersonsHeaders = computed(() => [
 ]);
 
 const headers = computed(() => [
+  ...(authStore.showInstitutionField
+    ? [{ key: "institutionName", title: "Institusi", sortable: true }]
+    : []),
   { key: "personNip", title: "NIP", sortable: true },
   { key: "personName", title: "Nama Pegawai", sortable: true },
   { key: "shiftName", title: "Shift / Jam Kerja", sortable: true },
@@ -252,12 +262,25 @@ const headers = computed(() => [
 ]);
 
 const filterSchema = computed(() => [
+  ...(authStore.showInstitutionField
+    ? [
+        {
+          name: "institutionId",
+          type: "autocomplete" as const,
+          items: "listInstitution",
+          placeholder: "Pilih Institusi",
+          colMd: 3,
+          valueKey: "id",
+          textKey: "name",
+        },
+      ]
+    : []),
   {
     name: "personId",
     type: "autocomplete" as const,
     items: "listPerson",
     placeholder: "Pilih Pegawai",
-    colMd: 3,
+    colMd: authStore.showInstitutionField ? 2 : 3,
     valueKey: "id",
     textKey: "name",
   },
@@ -266,11 +289,13 @@ const filterSchema = computed(() => [
     type: "autocomplete" as const,
     items: "listShift",
     placeholder: "Pilih Shift",
-    colMd: 3,
+    colMd: authStore.showInstitutionField ? 2 : 3,
     valueKey: "id",
     textKey: "name",
   },
-  { name: "", type: "text" as const, colMd: 2 },
+  ...(authStore.showInstitutionField
+    ? [{ name: "", type: "text" as const, colMd: 1 }]
+    : [{ name: "", type: "text" as const, colMd: 2 }]),
   {
     name: "q",
     type: "search" as const,
@@ -286,6 +311,7 @@ const actions = computed(() => [
     color: "#f59e0b",
     tooltip: "Ubah",
     emit: "editItem",
+    show: (item: any) => canModifyItem(item),
   },
   {
     key: "delete",
@@ -293,6 +319,7 @@ const actions = computed(() => [
     color: "#ef4444",
     tooltip: "Hapus",
     emit: "deleteItem",
+    show: (item: any) => canModifyItem(item),
   },
 ]);
 
@@ -319,14 +346,24 @@ onMounted(() => {
 });
 
 async function loadOptions() {
-  await Promise.all([
-    personSvc.retrieveAll().then((res: any) => {
+  const promises: Promise<any>[] = [
+    personSvc.retrieveAll({ institutionId: authStore.userInstitutionId }).then((res: any) => {
       if (res.data) listPerson.value = res.data;
     }).catch(() => {}),
-    shiftSvc.retrieveAll().then((res: any) => {
+    shiftSvc.retrieveAll({ institutionId: authStore.userInstitutionId }).then((res: any) => {
       if (res.data) listShift.value = res.data;
     }).catch(() => {}),
-  ]);
+  ];
+
+  if (authStore.showInstitutionField) {
+    promises.push(
+      institutionSvc.retrieveAll().then((res: any) => {
+        if (res.data) listInstitution.value = res.data;
+      }).catch(() => {})
+    );
+  }
+
+  await Promise.all(promises);
 }
 
 function formatDate(value: any) {
@@ -342,9 +379,11 @@ function formatDate(value: any) {
 }
 
 async function loadAll() {
-  const { pageNumber, pageSize, q, sortBy, sortType, personId, shiftId } = route.query;
+  const { pageNumber, pageSize, q, sortBy, sortType, personId, shiftId, institutionId } = route.query;
 
   isLoading.value = true;
+
+  const targetInstitutionId = authStore.userInstitutionId ?? institutionId;
 
   await patternSvc
     .retrieve({
@@ -355,6 +394,7 @@ async function loadAll() {
       sortType: sortType,
       personId: personId,
       shiftId: shiftId,
+      institutionId: targetInstitutionId,
     })
     .then((res: any) => {
       tableData.value = {
@@ -467,7 +507,9 @@ async function deleteItem(row: any) {
 }
 
 async function exportItem() {
-  const { q, sortBy, sortType, personId, shiftId } = route.query;
+  const { q, sortBy, sortType, personId, shiftId, institutionId } = route.query;
+
+  const targetInstitutionId = authStore.userInstitutionId ?? institutionId;
 
   const response: any = await patternSvc.retrieve({
     q: q,
@@ -477,6 +519,7 @@ async function exportItem() {
     sortType: sortType,
     personId: personId,
     shiftId: shiftId,
+    institutionId: targetInstitutionId,
     ignorePaging: true,
   });
 
@@ -490,6 +533,9 @@ async function exportItem() {
       subtitle: pageTitle,
     },
     columns: [
+      ...(authStore.showInstitutionField
+        ? [{ header: "Institusi", key: "institutionName", width: 30 }]
+        : []),
       { header: "NIP", key: "personNip", width: 20 },
       { header: "Nama Pegawai", key: "personName", width: 35 },
       { header: "Shift / Jam Kerja", key: "shiftName", width: 35 },

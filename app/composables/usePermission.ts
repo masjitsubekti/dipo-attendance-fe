@@ -30,10 +30,20 @@ export const usePermission = () => {
         return keys.every(key => hasPermission(key));
     };
 
+    // Check if user can modify an item based on institution scoping and optional permission key
+    const canModifyItem = (item: any, permissionKey?: string): boolean => {
+        if (permissionKey && !hasPermission(permissionKey)) return false;
+        if (!authStore.user?.institutionId) return true;
+        if (!item) return false;
+        const itemInstitutionId = typeof item === 'object' ? item.institutionId : item;
+        return itemInstitutionId === authStore.user.institutionId;
+    };
+
     return {
         hasPermission,
         checkPermission,
         hasAnyPermission,
         hasAllPermissions,
+        canModifyItem,
     };
 };

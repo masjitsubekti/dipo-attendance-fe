@@ -33,6 +33,7 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthStore } from "~/stores/auth";
 import personService from "@/services/person.service";
 import institutionService from "@/services/institution.service";
 import positionService from "@/services/position.service";
@@ -51,6 +52,8 @@ useHead({
   title: pageTitle,
 });
 
+const authStore = useAuthStore();
+const { canModifyItem } = usePermission();
 const route = useRoute();
 const router = useRouter();
 const swal = useSwal();
@@ -102,42 +105,55 @@ const headers = computed(() => [
   { key: "actions", title: "Aksi", align: "center", width: "10%" },
 ]);
 
-const filterSchema = computed(() => [
-  {
-    name: "institutionId",
-    type: "autocomplete" as const,
-    items: "listInstitution",
-    placeholder: "Pilih Institusi",
-    colMd: 2,
-    valueKey: "id",
-    textKey: "name",
-  },
-  {
-    name: "positionId",
-    type: "autocomplete" as const,
-    items: "listPosition",
-    placeholder: "Pilih Jabatan",
-    colMd: 2,
-    valueKey: "id",
-    textKey: "name",
-  },
-  {
-    name: "departmentId",
-    type: "autocomplete" as const,
-    items: "listDepartment",
-    placeholder: "Pilih Departemen",
-    colMd: 2,
-    valueKey: "id",
-    textKey: "name",
-  },
-  { name: "", type: "text" as const, colMd: 2 },
-  {
-    name: "q",
-    type: "search" as const,
-    placeholder: "Cari (Tekan Enter)",
-    colMd: 4,
-  },
-]);
+const filterSchema = computed(() => {
+  const schema: any[] = [];
+
+  if (authStore.showInstitutionField) {
+    schema.push({
+      name: "institutionId",
+      type: "autocomplete" as const,
+      items: "listInstitution",
+      placeholder: "Pilih Institusi",
+      colMd: 2,
+      valueKey: "id",
+      textKey: "name",
+    });
+  }
+
+  schema.push(
+    {
+      name: "positionId",
+      type: "autocomplete" as const,
+      items: "listPosition",
+      placeholder: "Pilih Jabatan",
+      colMd: 2,
+      valueKey: "id",
+      textKey: "name",
+    },
+    {
+      name: "departmentId",
+      type: "autocomplete" as const,
+      items: "listDepartment",
+      placeholder: "Pilih Departemen",
+      colMd: 2,
+      valueKey: "id",
+      textKey: "name",
+    },
+    {
+      name: "",
+      type: "text" as const,
+      colMd: authStore.showInstitutionField ? 2 : 4,
+    },
+    {
+      name: "q",
+      type: "search" as const,
+      placeholder: "Cari (Tekan Enter)",
+      colMd: 4,
+    }
+  );
+
+  return schema;
+});
 
 const actions = computed(() => [
   {
@@ -146,6 +162,7 @@ const actions = computed(() => [
     color: "#f59e0b",
     tooltip: "Ubah",
     emit: "editItem",
+    show: (item: any) => canModifyItem(item),
   },
   {
     key: "delete",
@@ -153,6 +170,7 @@ const actions = computed(() => [
     color: "#ef4444",
     tooltip: "Hapus",
     emit: "deleteItem",
+    show: (item: any) => canModifyItem(item),
   },
 ]);
 
@@ -179,17 +197,24 @@ onMounted(() => {
 });
 
 async function loadOptions() {
-  await Promise.all([
-    institutionSvc.retrieveAll().then((res: any) => {
-      if (res.data) listInstitution.value = res.data;
-    }).catch(() => {}),
-    positionSvc.retrieveAll().then((res: any) => {
+  const promises: Promise<any>[] = [
+    positionSvc.retrieveAll({ institutionId: authStore.userInstitutionId }).then((res: any) => {
       if (res.data) listPosition.value = res.data;
     }).catch(() => {}),
-    departmentSvc.retrieveAll().then((res: any) => {
+    departmentSvc.retrieveAll({ institutionId: authStore.userInstitutionId }).then((res: any) => {
       if (res.data) listDepartment.value = res.data;
     }).catch(() => {}),
-  ]);
+  ];
+
+  if (authStore.showInstitutionField) {
+    promises.push(
+      institutionSvc.retrieveAll().then((res: any) => {
+        if (res.data) listInstitution.value = res.data;
+      }).catch(() => {})
+    );
+  }
+
+  await Promise.all(promises);
 }
 
 function formatDate(value: any) {
@@ -219,6 +244,8 @@ async function loadAll() {
 
   isLoading.value = true;
 
+  const targetInstitutionId = authStore.userInstitutionId ?? institutionId;
+
   await personSvc
     .retrieve({
       q: q,
@@ -226,7 +253,7 @@ async function loadAll() {
       pageNumber: pageNumber ? pageNumber : 1,
       sortBy: sortBy,
       sortType: sortType,
-      institutionId: institutionId,
+      institutionId: targetInstitutionId,
       positionId: positionId,
       departmentId: departmentId,
       status: status,
@@ -276,13 +303,15 @@ async function deleteItem(row: any) {
 async function exportItem() {
   const { q, sortBy, sortType, institutionId, positionId, departmentId, status } = route.query;
 
+  const targetInstitutionId = authStore.userInstitutionId ?? institutionId;
+
   const response: any = await personSvc.retrieve({
     q: q,
     pageSize: 1,
     pageNumber: 1,
     sortBy: sortBy,
     sortType: sortType,
-    institutionId: institutionId,
+    institutionId: targetInstitutionId,
     positionId: positionId,
     departmentId: departmentId,
     status: status,

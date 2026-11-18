@@ -139,6 +139,7 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthStore } from "~/stores/auth";
 import reportService from "@/services/report.service";
 import institutionService from "@/services/institution.service";
 import departmentService from "@/services/department.service";
@@ -162,6 +163,7 @@ const breadcrumbs = [
   { label: pageTitle, active: true },
 ];
 
+const authStore = useAuthStore();
 const route = useRoute();
 const swal = useSwal();
 const reportSvc = reportService();
@@ -216,55 +218,64 @@ const headers = ref<any[]>([
 ]);
 
 const selectedInstitutionName = computed(() => {
+  if (!authStore.showInstitutionField) {
+    return authStore.user?.institutionName || "";
+  }
   const instId = route.query.institutionId;
   if (!instId) return "";
   const found = listInstitution.value.find((i: any) => String(i.id) === String(instId));
   return found?.name || "";
 });
 
-const filterSchema = computed(() => [
-  {
-    name: "startDate",
-    modalLabel: "Tanggal Awal",
-    type: "date" as const,
-    placeholder: "Tanggal Awal",
-    default: getFirstDayOfMonthString(),
-    colModalMd: 6,
-    showInModal: true,
-    showAboveTable: true,
-    clearable: false,
-  },
-  {
-    name: "endDate",
-    modalLabel: "Tanggal Akhir",
-    type: "date" as const,
-    placeholder: "Tanggal Akhir",
-    default: getLastDayOfMonthString(),
-    colModalMd: 6,
-    showInModal: true,
-    showAboveTable: true,
-    clearable: false,
-  },
-  { name: "", type: "text" as const, colMd: 4 },
-  {
-    name: "q",
-    type: "search" as const,
-    placeholder: "cari (Tekan Enter)",
-    colMd: 4,
-    showAboveTable: true,
-  },
-  {
-    name: "institutionId",
-    modalLabel: "Institusi",
-    type: "autocomplete" as const,
-    items: "listInstitution",
-    placeholder: "Pilih Institusi",
-    valueKey: "id",
-    textKey: "name",
-    colModalMd: 6,
-    showInModal: true,
-  },
-  {
+const filterSchema = computed(() => {
+  const schema: any[] = [
+    {
+      name: "startDate",
+      modalLabel: "Tanggal Awal",
+      type: "date" as const,
+      placeholder: "Tanggal Awal",
+      default: getFirstDayOfMonthString(),
+      colModalMd: 6,
+      showInModal: true,
+      showAboveTable: true,
+      clearable: false,
+    },
+    {
+      name: "endDate",
+      modalLabel: "Tanggal Akhir",
+      type: "date" as const,
+      placeholder: "Tanggal Akhir",
+      default: getLastDayOfMonthString(),
+      colModalMd: 6,
+      showInModal: true,
+      showAboveTable: true,
+      clearable: false,
+    },
+    { name: "", type: "text" as const, colMd: 4 },
+    {
+      name: "q",
+      type: "search" as const,
+      placeholder: "cari (Tekan Enter)",
+      colMd: 4,
+      showAboveTable: true,
+    },
+  ];
+
+  if (authStore.showInstitutionField) {
+    schema.push({
+      name: "institutionId",
+      modalLabel: "Institusi",
+      type: "autocomplete" as const,
+      items: "listInstitution",
+      placeholder: "Pilih Institusi",
+      valueKey: "id",
+      textKey: "name",
+      colModalMd: 6,
+      showInModal: true,
+    });
+  }
+
+  schema.push({
     name: "departmentId",
     modalLabel: "Departemen",
     type: "autocomplete" as const,
@@ -274,8 +285,10 @@ const filterSchema = computed(() => [
     textKey: "name",
     colModalMd: 6,
     showInModal: true,
-  },
-]);
+  });
+
+  return schema;
+});
 
 const actionToolbars = computed(() => [
   {
@@ -296,10 +309,15 @@ const actionToolbars = computed(() => [
 
 const loadOptions = async () => {
   try {
-    const instRes: any = await institutionSvc.retrieveAll();
-    listInstitution.value = instRes.data || instRes || [];
+    if (authStore.showInstitutionField) {
+      const instRes: any = await institutionSvc.retrieveAll();
+      listInstitution.value = instRes.data || instRes || [];
+    }
 
-    const deptRes: any = await deptSvc.retrieveAll({ ignorePaging: true });
+    const deptRes: any = await deptSvc.retrieveAll({
+      ignorePaging: true,
+      ...(authStore.userInstitutionId ? { institutionId: authStore.userInstitutionId } : {}),
+    });
     listDepartment.value = deptRes.data || deptRes || [];
   } catch (err) {
     console.error("[EmployeeSummary] Failed to load filter options:", err);
@@ -308,6 +326,7 @@ const loadOptions = async () => {
 
 async function loadAll() {
   const { pageNumber, pageSize, q, sortBy, sortType, institutionId, departmentId, startDate, endDate } = route.query;
+  const targetInstitutionId = authStore.userInstitutionId ?? institutionId;
   isLoading.value = true;
 
   await reportSvc
@@ -317,7 +336,7 @@ async function loadAll() {
       pageNumber: pageNumber ? pageNumber : 1,
       sortBy: sortBy,
       sortType: sortType,
-      institutionId: institutionId,
+      institutionId: targetInstitutionId,
       departmentId: departmentId,
       startDate: startDate ? startDate : getFirstDayOfMonthString(),
       endDate: endDate ? endDate : getLastDayOfMonthString(),
@@ -344,12 +363,13 @@ async function loadAll() {
 
 async function fetchFullDataForExportOrPrint() {
   const { q, sortBy, sortType, institutionId, departmentId, startDate, endDate } = route.query;
+  const targetInstitutionId = authStore.userInstitutionId ?? institutionId;
   
   const res: any = await reportSvc.getEmployeeSummary({
     q: q,
     sortBy: sortBy,
     sortType: sortType,
-    institutionId: institutionId,
+    institutionId: targetInstitutionId,
     departmentId: departmentId,
     startDate: startDate ? startDate : getFirstDayOfMonthString(),
     endDate: endDate ? endDate : getLastDayOfMonthString(),

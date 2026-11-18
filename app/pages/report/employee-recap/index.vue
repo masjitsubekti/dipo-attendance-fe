@@ -26,7 +26,7 @@
       <div class="p-6">
         <UiRow :gap="4" :mb="4">
           <!-- Institution Select -->
-          <UiCol cols="12" md="6" lg="3">
+          <UiCol v-if="authStore.showInstitutionField" cols="12" md="6" lg="3">
             <UiAutocomplete
               v-model="filter.institutionId"
               label="Institusi / Sekolah"
@@ -38,7 +38,7 @@
           </UiCol>
 
           <!-- Person Select -->
-          <UiCol cols="12" md="6" lg="3">
+          <UiCol cols="12" md="6" :lg="authStore.showInstitutionField ? 3 : 4">
             <UiAutocomplete
               v-model="filter.personId"
               label="Pegawai / Karyawan"
@@ -50,7 +50,7 @@
           </UiCol>
 
           <!-- Month Select -->
-          <UiCol cols="12" md="6" lg="3">
+          <UiCol cols="12" md="6" :lg="authStore.showInstitutionField ? 3 : 4">
             <UiSelect
               v-model="filter.month"
               label="Bulan"
@@ -60,7 +60,7 @@
           </UiCol>
 
           <!-- Year Input -->
-          <UiCol cols="12" md="6" lg="3">
+          <UiCol cols="12" md="6" :lg="authStore.showInstitutionField ? 3 : 4">
             <UiInput
               v-model.number="filter.year"
               type="number"
@@ -358,6 +358,7 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthStore } from "~/stores/auth";
 import reportService from "@/services/report.service";
 import institutionService from "@/services/institution.service";
 import personService from "@/services/person.service";
@@ -381,6 +382,7 @@ const breadcrumbs = [
   { label: pageTitle, active: true },
 ];
 
+const authStore = useAuthStore();
 const swal = useSwal();
 const reportSvc = reportService();
 const institutionSvc = institutionService();
@@ -398,7 +400,7 @@ const personOptions = ref<any[]>([]);
 
 const currentDate = new Date();
 const filter = reactive({
-  institutionId: undefined as number | string | undefined,
+  institutionId: (authStore.userInstitutionId ?? undefined) as number | string | undefined,
   personId: undefined as number | string | undefined,
   month: currentDate.getMonth() + 1,
   year: currentDate.getFullYear(),
@@ -438,19 +440,20 @@ const yearOptions = computed(() => {
 
 onMounted(() => {
   loadInstitutions();
-  loadPersons();
+  loadPersons(filter.institutionId);
 });
 
 function handleResetFilter() {
-  filter.institutionId = undefined;
+  filter.institutionId = authStore.userInstitutionId ?? undefined;
   filter.personId = undefined;
   filter.month = new Date().getMonth() + 1;
   filter.year = new Date().getFullYear();
-  loadPersons();
+  loadPersons(filter.institutionId);
   reportData.value = null;
 }
 
 async function loadInstitutions() {
+  if (!authStore.showInstitutionField) return;
   try {
     const res: any = await institutionSvc.retrieveAll();
     const items = res.data || [];
@@ -465,9 +468,10 @@ async function loadInstitutions() {
 
 async function loadPersons(institutionId?: any) {
   isLoadingPerson.value = true;
+  const targetInstitutionId = authStore.userInstitutionId ?? institutionId;
   try {
     const res: any = await personSvc.retrieveAll({
-      institutionId: institutionId || undefined,
+      institutionId: targetInstitutionId || undefined,
       ignorePaging: true,
     });
     const items = res.data || [];
@@ -510,7 +514,7 @@ async function fetchReport() {
       year: y,
       startDate,
       endDate,
-      institutionId: filter.institutionId,
+      institutionId: authStore.userInstitutionId ?? filter.institutionId,
     });
 
     if (res.status && res.data) {

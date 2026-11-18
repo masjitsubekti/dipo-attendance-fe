@@ -95,6 +95,7 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthStore } from "~/stores/auth";
 import attendanceLogService from "@/services/attendance-log.service";
 import institutionService from "@/services/institution.service";
 import positionService from "@/services/position.service";
@@ -112,6 +113,7 @@ useHead({
   title: pageTitle,
 });
 
+const authStore = useAuthStore();
 const route = useRoute();
 const logSvc = attendanceLogService();
 const institutionSvc = institutionService();
@@ -189,104 +191,114 @@ const headers = computed(() => [
   { key: "actions", title: "Aksi", align: "center", width: "6%" },
 ]);
 
-const filterSchema = computed(() => [
-  {
-    name: "startDate",
-    modalLabel: "Tanggal Awal",
-    type: "date" as const,
-    placeholder: "Tanggal Awal",
-    colModalMd: 6,
-    showInModal: true,
-    showAboveTable: true,
-    clearable: false,
-    default: getTodayDateString(),
-  },
-  {
-    name: "endDate",
-    modalLabel: "Tanggal Akhir",
-    type: "date" as const,
-    placeholder: "Tanggal Akhir",
-    colModalMd: 6,
-    showInModal: true,
-    showAboveTable: true,
-    clearable: false,
-    default: getTodayDateString(),
-  },
-  { name: "", type: "text" as const, colMd: 4 },
-  {
-    name: "q",
-    type: "search" as const,
-    placeholder: "cari (Tekan Enter)",
-    colMd: 4,
-    showAboveTable: true,
-  },
-  {
-    name: "institutionId",
-    modalLabel: "Institusi",
-    type: "autocomplete" as const,
-    items: "listInstitution",
-    placeholder: "Pilih Institusi",
-    valueKey: "id",
-    textKey: "name",
-    colModalMd: 6,
-    showInModal: true,
-  },
-  {
-    name: "departmentId",
-    modalLabel: "Departemen",
-    type: "autocomplete" as const,
-    items: "listDepartment",
-    placeholder: "Pilih Departemen",
-    valueKey: "id",
-    textKey: "name",
-    colModalMd: 6,
-    showInModal: true,
-  },
-  {
-    name: "positionId",
-    modalLabel: "Jabatan",
-    type: "autocomplete" as const,
-    items: "listPosition",
-    placeholder: "Pilih Jabatan",
-    valueKey: "id",
-    textKey: "name",
-    colModalMd: 6,
-    showInModal: true,
-  },
-  {
-    name: "attendanceType",
-    modalLabel: "Jenis Kehadiran",
-    type: "autocomplete" as const,
-    items: "listAttendanceType",
-    placeholder: "Pilih Kehadiran",
-    valueKey: "id",
-    textKey: "name",
-    colModalMd: 6,
-    showInModal: true,
-  },
-  {
-    name: "mode",
-    modalLabel: "Mode",
-    type: "autocomplete" as const,
-    items: "listMode",
-    placeholder: "Pilih Mode",
-    valueKey: "id",
-    textKey: "name",
-    colModalMd: 6,
-    showInModal: true,
-  },
-  {
-    name: "status",
-    modalLabel: "Status",
-    type: "autocomplete" as const,
-    items: "listStatus",
-    placeholder: "Pilih Status",
-    valueKey: "id",
-    textKey: "name",
-    colModalMd: 6,
-    showInModal: true,
-  },
-]);
+const filterSchema = computed(() => {
+  const schema: any[] = [
+    {
+      name: "startDate",
+      modalLabel: "Tanggal Awal",
+      type: "date" as const,
+      placeholder: "Tanggal Awal",
+      colModalMd: 6,
+      showInModal: true,
+      showAboveTable: true,
+      clearable: false,
+      default: getTodayDateString(),
+    },
+    {
+      name: "endDate",
+      modalLabel: "Tanggal Akhir",
+      type: "date" as const,
+      placeholder: "Tanggal Akhir",
+      colModalMd: 6,
+      showInModal: true,
+      showAboveTable: true,
+      clearable: false,
+      default: getTodayDateString(),
+    },
+    { name: "", type: "text" as const, colMd: 4 },
+    {
+      name: "q",
+      type: "search" as const,
+      placeholder: "cari (Tekan Enter)",
+      colMd: 4,
+      showAboveTable: true,
+    },
+  ];
+
+  if (authStore.showInstitutionField) {
+    schema.push({
+      name: "institutionId",
+      modalLabel: "Institusi",
+      type: "autocomplete" as const,
+      items: "listInstitution",
+      placeholder: "Pilih Institusi",
+      valueKey: "id",
+      textKey: "name",
+      colModalMd: 6,
+      showInModal: true,
+    });
+  }
+
+  schema.push(
+    {
+      name: "departmentId",
+      modalLabel: "Departemen",
+      type: "autocomplete" as const,
+      items: "listDepartment",
+      placeholder: "Pilih Departemen",
+      valueKey: "id",
+      textKey: "name",
+      colModalMd: 6,
+      showInModal: true,
+    },
+    {
+      name: "positionId",
+      modalLabel: "Jabatan",
+      type: "autocomplete" as const,
+      items: "listPosition",
+      placeholder: "Pilih Jabatan",
+      valueKey: "id",
+      textKey: "name",
+      colModalMd: 6,
+      showInModal: true,
+    },
+    {
+      name: "attendanceType",
+      modalLabel: "Jenis Kehadiran",
+      type: "autocomplete" as const,
+      items: "listAttendanceType",
+      placeholder: "Pilih Kehadiran",
+      valueKey: "id",
+      textKey: "name",
+      colModalMd: 6,
+      showInModal: true,
+    },
+    {
+      name: "mode",
+      modalLabel: "Mode",
+      type: "autocomplete" as const,
+      items: "listMode",
+      placeholder: "Pilih Mode",
+      valueKey: "id",
+      textKey: "name",
+      colModalMd: 6,
+      showInModal: true,
+    },
+    {
+      name: "status",
+      modalLabel: "Status",
+      type: "autocomplete" as const,
+      items: "listStatus",
+      placeholder: "Pilih Status",
+      valueKey: "id",
+      textKey: "name",
+      colModalMd: 6,
+      showInModal: true,
+    },
+  );
+
+  return schema;
+});
 
 const actions = computed(() => [
   {
@@ -361,13 +373,19 @@ const getStatusBadgeVariant = (status: string | null, checkoutTime?: any): "succ
 
 const loadOptions = async () => {
   try {
-    const instRes: any = await institutionSvc.retrieveAll();
-    listInstitution.value = instRes.data || instRes || [];
+    if (authStore.showInstitutionField) {
+      const instRes: any = await institutionSvc.retrieveAll();
+      listInstitution.value = instRes.data || instRes || [];
+    }
 
-    const posRes: any = await positionSvc.retrieveAll();
+    const filterParams = authStore.userInstitutionId
+      ? { institutionId: authStore.userInstitutionId }
+      : {};
+
+    const posRes: any = await positionSvc.retrieveAll(filterParams);
     listPosition.value = posRes.data || posRes || [];
 
-    const deptRes: any = await deptSvc.retrieveAll();
+    const deptRes: any = await deptSvc.retrieveAll(filterParams);
     listDepartment.value = deptRes.data || deptRes || [];
   } catch (err) {
     console.error("[AttendanceLog] Failed to load filter options:", err);
@@ -375,8 +393,11 @@ const loadOptions = async () => {
 };
 
 async function loadAll() {
-  const { pageNumber, pageSize, q, sortBy, sortType, institutionId, positionId, departmentId, attendanceType, status, startDate, endDate } = route.query;
+  const { pageNumber, pageSize, q, sortBy, sortType, institutionId, positionId, departmentId, attendanceType, status, mode, startDate, endDate } = route.query;
   isLoading.value = true;
+
+  const targetInstitutionId = authStore.userInstitutionId ?? institutionId;
+
   await logSvc
     .retrieve({
       q: q,
@@ -384,11 +405,12 @@ async function loadAll() {
       pageNumber: pageNumber ? pageNumber : 1,
       sortBy: sortBy,
       sortType: sortType,
-      institutionId: institutionId,
+      institutionId: targetInstitutionId,
       positionId: positionId,
       departmentId: departmentId,
       attendanceType: attendanceType,
       status: status,
+      mode: mode,
       startDate: startDate ? startDate : getTodayDateString(),
       endDate: endDate ? endDate : getTodayDateString(),
     })
@@ -406,6 +428,7 @@ async function loadAll() {
 
 async function exportItem() {
   const { q, sortBy, sortType, institutionId, positionId, departmentId, attendanceType, status, mode, startDate, endDate } = route.query;
+  const targetInstitutionId = authStore.userInstitutionId ?? institutionId;
 
   const response: any = await logSvc.retrieve({
     q: q,
@@ -413,7 +436,7 @@ async function exportItem() {
     pageNumber: 1,
     sortBy: sortBy,
     sortType: sortType,
-    institutionId: institutionId,
+    institutionId: targetInstitutionId,
     positionId: positionId,
     departmentId: departmentId,
     attendanceType: attendanceType,

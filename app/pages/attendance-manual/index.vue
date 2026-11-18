@@ -171,6 +171,8 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthStore } from "~/stores/auth";
+import { usePermission } from "~/composables/usePermission";
 import attendanceManualService from "@/services/attendance-manual.service";
 import attendanceTypeService from "@/services/attendance-type.service";
 import institutionService from "@/services/institution.service";
@@ -191,6 +193,8 @@ useHead({
   title: pageTitle,
 });
 
+const authStore = useAuthStore();
+const { canModifyItem } = usePermission();
 const route = useRoute();
 const router = useRouter();
 const swal = useSwal();
@@ -259,93 +263,103 @@ const headers = computed(() => [
   { key: "actions", title: "Aksi", align: "center", width: "10%" },
 ]);
 
-const filterSchema = computed(() => [
-  {
-    name: "startDate",
-    modalLabel: "Tanggal Awal",
-    type: "date" as const,
-    placeholder: "Tanggal Awal",
-    colModalMd: 6,
-    showInModal: true,
-    showAboveTable: true,
-    clearable: false,
-    default: getTodayDateString(),
-  },
-  {
-    name: "endDate",
-    modalLabel: "Tanggal Akhir",
-    type: "date" as const,
-    placeholder: "Tanggal Akhir",
-    colModalMd: 6,
-    showInModal: true,
-    showAboveTable: true,
-    clearable: false,
-    default: getTodayDateString(),
-  },
-  { name: "", type: "text" as const, colMd: 4 },
-  {
-    name: "q",
-    type: "search" as const,
-    placeholder: "Cari (Tekan Enter)",
-    colMd: 4,
-    showAboveTable: true,
-  },
-  {
-    name: "institutionId",
-    modalLabel: "Institusi",
-    type: "autocomplete" as const,
-    items: "listInstitution",
-    placeholder: "Pilih Institusi",
-    valueKey: "id",
-    textKey: "name",
-    colModalMd: 6,
-    showInModal: true,
-  },
-  {
-    name: "departmentId",
-    modalLabel: "Departemen",
-    type: "autocomplete" as const,
-    items: "listDepartment",
-    placeholder: "Pilih Departemen",
-    valueKey: "id",
-    textKey: "name",
-    colModalMd: 6,
-    showInModal: true,
-  },
-  {
-    name: "positionId",
-    modalLabel: "Jabatan",
-    type: "autocomplete" as const,
-    items: "listPosition",
-    placeholder: "Pilih Jabatan",
-    valueKey: "id",
-    textKey: "name",
-    colModalMd: 6,
-    showInModal: true,
-  },
-  {
-    name: "attendanceTypeId",
-    modalLabel: "Jenis Presensi / Izin",
-    type: "autocomplete" as const,
-    items: "listAttendanceType",
-    placeholder: "Pilih Jenis Presensi",
-    valueKey: "id",
-    textKey: "name",
-    colModalMd: 6,
-    showInModal: true,
-  },
-  {
-    name: "status",
-    modalLabel: "Status Kehadiran",
-    type: "autocomplete" as const,
-    items: "listStatus",
-    placeholder: "Pilih Status",
-    valueKey: "id",
-    textKey: "name",
-    colModalMd: 6,
-    showInModal: true,
-  },
-]);
+const filterSchema = computed(() => {
+  const schema: any[] = [
+    {
+      name: "startDate",
+      modalLabel: "Tanggal Awal",
+      type: "date" as const,
+      placeholder: "Tanggal Awal",
+      colModalMd: 6,
+      showInModal: true,
+      showAboveTable: true,
+      clearable: false,
+      default: getTodayDateString(),
+    },
+    {
+      name: "endDate",
+      modalLabel: "Tanggal Akhir",
+      type: "date" as const,
+      placeholder: "Tanggal Akhir",
+      colModalMd: 6,
+      showInModal: true,
+      showAboveTable: true,
+      clearable: false,
+      default: getTodayDateString(),
+    },
+    { name: "", type: "text" as const, colMd: 4 },
+    {
+      name: "q",
+      type: "search" as const,
+      placeholder: "Cari (Tekan Enter)",
+      colMd: 4,
+      showAboveTable: true,
+    },
+  ];
+
+  if (authStore.showInstitutionField) {
+    schema.push({
+      name: "institutionId",
+      modalLabel: "Institusi",
+      type: "autocomplete" as const,
+      items: "listInstitution",
+      placeholder: "Pilih Institusi",
+      valueKey: "id",
+      textKey: "name",
+      colModalMd: 6,
+      showInModal: true,
+    });
+  }
+
+  schema.push(
+    {
+      name: "departmentId",
+      modalLabel: "Departemen",
+      type: "autocomplete" as const,
+      items: "listDepartment",
+      placeholder: "Pilih Departemen",
+      valueKey: "id",
+      textKey: "name",
+      colModalMd: 6,
+      showInModal: true,
+    },
+    {
+      name: "positionId",
+      modalLabel: "Jabatan",
+      type: "autocomplete" as const,
+      items: "listPosition",
+      placeholder: "Pilih Jabatan",
+      valueKey: "id",
+      textKey: "name",
+      colModalMd: 6,
+      showInModal: true,
+    },
+    {
+      name: "attendanceTypeId",
+      modalLabel: "Jenis Presensi / Izin",
+      type: "autocomplete" as const,
+      items: "listAttendanceType",
+      placeholder: "Pilih Jenis Presensi",
+      valueKey: "id",
+      textKey: "name",
+      colModalMd: 6,
+      showInModal: true,
+    },
+    {
+      name: "status",
+      modalLabel: "Status Kehadiran",
+      type: "autocomplete" as const,
+      items: "listStatus",
+      placeholder: "Pilih Status",
+      valueKey: "id",
+      textKey: "name",
+      colModalMd: 6,
+      showInModal: true,
+    },
+  );
+
+  return schema;
+});
 
 const showLogsDialog = ref(false);
 const isLoadingLogs = ref(false);
@@ -366,6 +380,7 @@ const actions = computed(() => [
     color: "#f59e0b",
     tooltip: "Ubah",
     emit: "editItem",
+    show: (item: any) => canModifyItem(item),
   },
   {
     key: "delete",
@@ -373,6 +388,7 @@ const actions = computed(() => [
     color: "#ef4444",
     tooltip: "Hapus",
     emit: "deleteItem",
+    show: (item: any) => canModifyItem(item),
   },
 ]);
 
@@ -467,16 +483,24 @@ onMounted(() => {
 
 async function loadOptions() {
   try {
+    const filterParams = authStore.userInstitutionId
+      ? { institutionId: authStore.userInstitutionId }
+      : {};
+
     const [instRes, posRes, deptRes, attTypeRes]: any = await Promise.all([
-      institutionSvc.retrieveAll().catch(() => []),
-      positionSvc.retrieveAll().catch(() => []),
-      deptSvc.retrieveAll().catch(() => []),
+      authStore.showInstitutionField
+        ? institutionSvc.retrieveAll().catch(() => [])
+        : Promise.resolve([]),
+      positionSvc.retrieveAll(filterParams).catch(() => []),
+      deptSvc.retrieveAll(filterParams).catch(() => []),
       attendanceTypeSvc.retrieveAll({
         category: 'attendance'
       }).catch(() => []),
     ]);
 
-    listInstitution.value = instRes.data || instRes || [];
+    if (authStore.showInstitutionField) {
+      listInstitution.value = instRes.data || instRes || [];
+    }
     listPosition.value = posRes.data || posRes || [];
     listDepartment.value = deptRes.data || deptRes || [];
     listAttendanceType.value = attTypeRes.data || attTypeRes || [];
@@ -487,6 +511,7 @@ async function loadOptions() {
 
 async function loadAll() {
   const { pageNumber, pageSize, q, sortBy, sortType, institutionId, positionId, departmentId, attendanceTypeId, status, mode, startDate, endDate } = route.query;
+  const targetInstitutionId = authStore.userInstitutionId ?? institutionId;
 
   isLoading.value = true;
   await manualSvc
@@ -496,7 +521,7 @@ async function loadAll() {
       pageNumber: pageNumber ? pageNumber : 1,
       sortBy: sortBy,
       sortType: sortType,
-      institutionId: institutionId,
+      institutionId: targetInstitutionId,
       positionId: positionId,
       departmentId: departmentId,
       attendanceTypeId: attendanceTypeId,
@@ -546,6 +571,7 @@ async function deleteItem(row: any) {
 
 async function exportItem() {
   const { q, sortBy, sortType, institutionId, positionId, departmentId, attendanceTypeId, status, mode, startDate, endDate } = route.query;
+  const targetInstitutionId = authStore.userInstitutionId ?? institutionId;
 
   const response: any = await manualSvc.retrieve({
     q: q,
@@ -553,7 +579,7 @@ async function exportItem() {
     pageNumber: 1,
     sortBy: sortBy,
     sortType: sortType,
-    institutionId: institutionId,
+    institutionId: targetInstitutionId,
     positionId: positionId,
     departmentId: departmentId,
     attendanceTypeId: attendanceTypeId,

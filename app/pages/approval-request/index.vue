@@ -10,7 +10,7 @@
       :tableData="tableData"
       :loading="isLoading"
       :filterSchema="filterSchema"
-      :filterList="{ listAttendanceType, listStatus, listDepartment }"
+      :filterList="{ listInstitution, listAttendanceType, listStatus, listDepartment }"
       :actions="actions"
       :actionToolbars="actionToolbars"
       :actionLoading="{ exportItem: isExporting }"
@@ -291,8 +291,11 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthStore } from "~/stores/auth";
+import { usePermission } from "~/composables/usePermission";
 import attendanceRequestService from "@/services/attendance-request.service";
 import attendanceTypeService from "@/services/attendance-type.service";
+import institutionService from "@/services/institution.service";
 import departmentService from "@/services/department.service";
 import DocumentPreview from "@/components/dialog/DocumentPreview.vue";
 import { useSwal } from "~/composables/useSwal";
@@ -310,16 +313,20 @@ useHead({
   title: pageTitle,
 });
 
+const authStore = useAuthStore();
+const { canModifyItem } = usePermission();
 const route = useRoute();
 const swal = useSwal();
 const { formatDate } = useFormat();
 const attendanceRequestSvc = attendanceRequestService();
 const attendanceTypeSvc = attendanceTypeService();
+const institutionSvc = institutionService();
 const departmentSvc = departmentService();
 const { isExporting, exportToExcel } = useExcelExport();
 
 const isLoading = ref(false);
 const itemPerPage = ref(10);
+const listInstitution: any = ref([]);
 const listAttendanceType: any = ref([]);
 const listDepartment: any = ref([]);
 
@@ -397,73 +404,94 @@ const headers = computed(() => [
   { key: "actions", title: "Aksi", align: "center" as const, width: "10%" },
 ]);
 
-const filterSchema = computed(() => [
-  {
-    name: "startDate",
-    modalLabel: "Tanggal Awal",
-    type: "date" as const,
-    placeholder: "Tanggal Awal",
-    colModalMd: 6,
-    showInModal: true,
-    showAboveTable: true,
-    hideAboveTableMobile: true,
-    clearable: false,
-    default: getFirstDayOfMonthString(),
-  },
-  {
-    name: "endDate",
-    modalLabel: "Tanggal Akhir",
-    type: "date" as const,
-    placeholder: "Tanggal Akhir",
-    colModalMd: 6,
-    showInModal: true,
-    showAboveTable: true,
-    hideAboveTableMobile: true,
-    clearable: false,
-    default: getLastDayOfMonthString(),
-  },
-  { name: "", type: "text" as const, colMd: 4 },
-  {
-    name: "q",
-    type: "search" as const,
-    placeholder: "Cari (Tekan Enter)",
-    colMd: 4,
-    showAboveTable: true,
-  },
-  {
-    name: "attendanceTypeId",
-    modalLabel: "Jenis Pengajuan",
-    type: "autocomplete" as const,
-    items: "listAttendanceType",
-    placeholder: "Pilih Jenis Pengajuan",
-    valueKey: "id",
-    textKey: "name",
-    colModalMd: 6,
-    showInModal: true,
-  },
-  {
-    name: "departmentId",
-    modalLabel: "Departemen",
-    type: "autocomplete" as const,
-    items: "listDepartment",
-    placeholder: "Pilih Departemen",
-    valueKey: "id",
-    textKey: "name",
-    colModalMd: 6,
-    showInModal: true,
-  },
-  {
-    name: "status",
-    modalLabel: "Status",
-    type: "autocomplete" as const,
-    items: "listStatus",
-    placeholder: "Pilih Status",
-    valueKey: "id",
-    textKey: "name",
-    colModalMd: 6,
-    showInModal: true,
-  },
-]);
+const filterSchema = computed(() => {
+  const schema: any[] = [
+    {
+      name: "startDate",
+      modalLabel: "Tanggal Awal",
+      type: "date" as const,
+      placeholder: "Tanggal Awal",
+      colModalMd: 6,
+      showInModal: true,
+      showAboveTable: true,
+      hideAboveTableMobile: true,
+      clearable: false,
+      default: getFirstDayOfMonthString(),
+    },
+    {
+      name: "endDate",
+      modalLabel: "Tanggal Akhir",
+      type: "date" as const,
+      placeholder: "Tanggal Akhir",
+      colModalMd: 6,
+      showInModal: true,
+      showAboveTable: true,
+      hideAboveTableMobile: true,
+      clearable: false,
+      default: getLastDayOfMonthString(),
+    },
+    { name: "", type: "text" as const, colMd: 4 },
+    {
+      name: "q",
+      type: "search" as const,
+      placeholder: "Cari (Tekan Enter)",
+      colMd: 4,
+      showAboveTable: true,
+    },
+  ];
+
+  if (authStore.showInstitutionField) {
+    schema.push({
+      name: "institutionId",
+      modalLabel: "Institusi",
+      type: "autocomplete" as const,
+      items: "listInstitution",
+      placeholder: "Pilih Institusi",
+      valueKey: "id",
+      textKey: "name",
+      colModalMd: 6,
+      showInModal: true,
+    });
+  }
+
+  schema.push(
+    {
+      name: "attendanceTypeId",
+      modalLabel: "Jenis Pengajuan",
+      type: "autocomplete" as const,
+      items: "listAttendanceType",
+      placeholder: "Pilih Jenis Pengajuan",
+      valueKey: "id",
+      textKey: "name",
+      colModalMd: 6,
+      showInModal: true,
+    },
+    {
+      name: "departmentId",
+      modalLabel: "Departemen",
+      type: "autocomplete" as const,
+      items: "listDepartment",
+      placeholder: "Pilih Departemen",
+      valueKey: "id",
+      textKey: "name",
+      colModalMd: 6,
+      showInModal: true,
+    },
+    {
+      name: "status",
+      modalLabel: "Status",
+      type: "autocomplete" as const,
+      items: "listStatus",
+      placeholder: "Pilih Status",
+      valueKey: "id",
+      textKey: "name",
+      colModalMd: 6,
+      showInModal: true,
+    },
+  );
+
+  return schema;
+});
 
 const actions = computed(() => [
   {
@@ -473,6 +501,7 @@ const actions = computed(() => [
     color: "#10b981",
     tooltip: "Approval",
     emit: "processApproval",
+    show: (item: any) => canModifyItem(item),
   },
 ]);
 
@@ -536,11 +565,21 @@ onMounted(() => {
 
 async function loadOptions() {
   try {
-    const [attTypeRes, deptRes]: any = await Promise.all([
+    const deptParams = authStore.userInstitutionId
+      ? { institutionId: authStore.userInstitutionId }
+      : {};
+
+    const [instRes, attTypeRes, deptRes]: any = await Promise.all([
+      authStore.showInstitutionField
+        ? institutionSvc.retrieveAll().catch(() => [])
+        : Promise.resolve([]),
       attendanceTypeSvc.retrieveAll({ category: 'leave,time_off,duty,absence' }).catch(() => []),
-      departmentSvc.retrieveAll().catch(() => []),
+      departmentSvc.retrieveAll(deptParams).catch(() => []),
     ]);
 
+    if (authStore.showInstitutionField) {
+      listInstitution.value = instRes.data || instRes || [];
+    }
     listAttendanceType.value = attTypeRes.data || attTypeRes || [];
     listDepartment.value = deptRes.data || deptRes || [];
   } catch (err) {
@@ -559,7 +598,8 @@ function formatDateTime(value: any) {
 }
 
 async function loadAll() {
-  const { pageNumber, pageSize, q, sortBy, sortType, attendanceTypeId, departmentId, status, startDate, endDate } = route.query;
+  const { pageNumber, pageSize, q, sortBy, sortType, institutionId, attendanceTypeId, departmentId, status, startDate, endDate } = route.query;
+  const targetInstitutionId = authStore.userInstitutionId ?? institutionId;
 
   isLoading.value = true;
   await attendanceRequestSvc
@@ -569,6 +609,7 @@ async function loadAll() {
       pageNumber: pageNumber ? pageNumber : 1,
       sortBy: sortBy,
       sortType: sortType,
+      institutionId: targetInstitutionId,
       attendanceTypeId: attendanceTypeId,
       departmentId: departmentId,
       status: status,
@@ -646,7 +687,8 @@ async function submitQuickStatus(targetStatus: string) {
 }
 
 async function exportItem() {
-  const { q, sortBy, sortType, attendanceTypeId, departmentId, status, startDate, endDate } = route.query;
+  const { q, sortBy, sortType, institutionId, attendanceTypeId, departmentId, status, startDate, endDate } = route.query;
+  const targetInstitutionId = authStore.userInstitutionId ?? institutionId;
 
   const response: any = await attendanceRequestSvc.retrieve({
     q: q,
@@ -654,6 +696,7 @@ async function exportItem() {
     pageNumber: 1,
     sortBy: sortBy,
     sortType: sortType,
+    institutionId: targetInstitutionId,
     attendanceTypeId: attendanceTypeId,
     departmentId: departmentId,
     status: status,

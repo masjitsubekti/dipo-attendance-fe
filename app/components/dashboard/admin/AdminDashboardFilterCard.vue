@@ -9,8 +9,13 @@
   >
     <div v-show="showFilters">
       <UiCard class="sm:p-5">
-        <div class="grid grid-cols-1 items-end gap-4 sm:grid-cols-2 lg:grid-cols-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
-          <div>
+        <div
+          class="grid grid-cols-1 items-end gap-4 sm:grid-cols-2"
+          :class="showInstitutionFilter
+            ? 'lg:grid-cols-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]'
+            : 'lg:grid-cols-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]'"
+        >
+          <div v-if="showInstitutionFilter">
             <UiAutocomplete
               :model-value="institution"
               :options="institutionOptions"
@@ -82,17 +87,23 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
-  showFilters: boolean;
-  institution: string;
-  department: string;
-  startDate: string;
-  endDate: string;
-  selectedMonth: string;
-  institutionOptions: Array<{ value: string; label: string }>;
-  departmentOptions: Array<{ value: string; label: string }>;
-  isLoadingData: boolean;
-}>();
+withDefaults(
+  defineProps<{
+    showFilters: boolean;
+    showInstitutionFilter?: boolean;
+    institution: string;
+    department: string;
+    startDate: string;
+    endDate: string;
+    selectedMonth: string;
+    institutionOptions: Array<{ value: string; label: string }>;
+    departmentOptions: Array<{ value: string; label: string }>;
+    isLoadingData: boolean;
+  }>(),
+  {
+    showInstitutionFilter: true,
+  }
+);
 
 const emit = defineEmits<{
   (e: "update:institution", val: string): void;

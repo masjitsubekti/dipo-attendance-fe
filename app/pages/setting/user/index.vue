@@ -19,6 +19,13 @@
       @deactivateUser="toggleStatus"
       @activateUser="toggleStatus"
     >
+      <template #item.institutionName="{ item, value }">
+        <UiBadge v-if="!item.institutionId" variant="primary">
+          Global / Yayasan
+        </UiBadge>
+        <span v-else>{{ value || '-' }}</span>
+      </template>
+
       <template #item.active="{ value }">
         <UiBadge :variant="value ? 'success' : 'danger'">
           {{ value ? "Aktif" : "Nonaktif" }}
@@ -89,6 +96,7 @@
           </UiRow>
 
           <UiAutocomplete
+            v-if="authStore.showInstitutionField"
             v-model="editedItem.institutionId"
             label="Institusi"
             placeholder="Pilih Institusi"
@@ -139,6 +147,8 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthStore } from "~/stores/auth";
+import { usePermission } from "~/composables/usePermission";
 import userService from "@/services/user.service";
 import roleService from "@/services/role.service";
 import institutionService from "@/services/institution.service";
@@ -162,6 +172,8 @@ const formRef = ref<{
   resetValidation: () => void;
 } | null>(null);
 
+const authStore = useAuthStore();
+const { canModifyItem } = usePermission();
 const swal = useSwal();
 const route = useRoute();
 const userSvc = userService();
@@ -215,33 +227,43 @@ const headers = computed(() => [
   { key: "actions", title: "Aksi", align: "center", width: "10%" },
 ]);
 
-const filterSchema = computed(() => [
-  {
-    name: "roleId",
-    type: "autocomplete" as const,
-    items: "listRole",
-    placeholder: "Pilih Role",
-    colMd: 3,
-    valueKey: "id",
-    textKey: "name",
-  },
-  {
-    name: "institutionId",
-    type: "autocomplete" as const,
-    items: "listInstitution",
-    placeholder: "Pilih Institusi",
-    colMd: 3,
-    valueKey: "id",
-    textKey: "name",
-  },
-  { name: "", type: "text" as const, colMd: 2 },
-  {
-    name: "q",
-    type: "search" as const,
-    placeholder: "Cari (Tekan Enter)",
-    colMd: 4,
-  },
-]);
+const filterSchema = computed(() => {
+  const schema: any[] = [
+    {
+      name: "roleId",
+      type: "autocomplete" as const,
+      items: "listRole",
+      placeholder: "Pilih Role",
+      colMd: 3,
+      valueKey: "id",
+      textKey: "name",
+    },
+  ];
+
+  if (authStore.showInstitutionField) {
+    schema.push({
+      name: "institutionId",
+      type: "autocomplete" as const,
+      items: "listInstitution",
+      placeholder: "Pilih Institusi",
+      colMd: 3,
+      valueKey: "id",
+      textKey: "name",
+    });
+  }
+
+  schema.push(
+    { name: "", type: "text" as const, colMd: authStore.showInstitutionField ? 2 : 5 },
+    {
+      name: "q",
+      type: "search" as const,
+      placeholder: "Cari (Tekan Enter)",
+      colMd: 4,
+    },
+  );
+
+  return schema;
+});
 
 const actions = computed(() => [
   {
@@ -250,6 +272,7 @@ const actions = computed(() => [
     color: "#f59e0b",
     tooltip: "Ubah",
     emit: "editItem",
+    show: (item: any) => canModifyItem(item),
   },
   {
     key: "deactivate",
@@ -257,7 +280,7 @@ const actions = computed(() => [
     color: "#6b7280",
     tooltip: "Nonaktifkan",
     emit: "deactivateUser",
-    show: (item: any) => item.active === true,
+    show: (item: any) => item.active === true && canModifyItem(item),
   },
   {
     key: "activate",
@@ -265,7 +288,7 @@ const actions = computed(() => [
     color: "#22c55e",
     tooltip: "Aktifkan",
     emit: "activateUser",
-    show: (item: any) => item.active === false,
+    show: (item: any) => item.active === false && canModifyItem(item),
   },
   {
     key: "delete",
@@ -273,6 +296,7 @@ const actions = computed(() => [
     color: "#ef4444",
     tooltip: "Hapus",
     emit: "deleteItem",
+    show: (item: any) => canModifyItem(item),
   },
 ]);
 
@@ -299,7 +323,10 @@ const defaultItem = {
   status: "1",
 };
 
-const editedItem: any = ref({ ...defaultItem });
+const editedItem: any = ref({
+  ...defaultItem,
+  institutionId: authStore.userInstitutionId ?? null,
+});
 
 const passwordRules = computed(() => {
   if (isEditing.value) {
@@ -322,6 +349,7 @@ onMounted(() => {
 });
 
 async function loadAllInstitution() {
+  if (!authStore.showInstitutionField) return;
   await instSvc.retrieveAll().then((res: any) => {
     listInstitution.value = res.data || [];
   });
@@ -341,6 +369,8 @@ async function loadAll() {
 
   isLoading.value = true;
 
+  const targetInstitutionId = authStore.userInstitutionId ?? (institutionId ? institutionId : filter.value.institutionId);
+
   await userSvc
     .retrieve({
       q: q,
@@ -349,7 +379,7 @@ async function loadAll() {
       sortBy: sortBy,
       sortType: sortType,
       roleId: roleId,
-      institutionId: institutionId ? institutionId : filter.value.institutionId,
+      institutionId: targetInstitutionId,
     })
     .then((res: any) => {
       isLoading.value = false;
@@ -371,11 +401,12 @@ async function loadAllRole() {
 
 function addItem() {
   isEditing.value = false;
-  editedItem.value = {
-    ...defaultItem,
-  };
   formRef.value?.reset();
   formRef.value?.resetValidation();
+  editedItem.value = {
+    ...defaultItem,
+    institutionId: authStore.userInstitutionId ?? null,
+  };
   showDialog.value = true;
 }
 
@@ -392,6 +423,8 @@ async function editItem(row: any) {
       }
       if (editedItem.value.institutionId) {
         editedItem.value.institutionId = Number(editedItem.value.institutionId);
+      } else {
+        editedItem.value.institutionId = authStore.userInstitutionId ?? null;
       }
 
       isEditing.value = true;
@@ -474,7 +507,10 @@ function handleClose() {
   isEditing.value = false;
   formRef.value?.reset();
   formRef.value?.resetValidation();
-  editedItem.value = { ...defaultItem };
+  editedItem.value = {
+    ...defaultItem,
+    institutionId: authStore.userInstitutionId ?? null,
+  };
   showDialog.value = false;
 }
 
@@ -505,8 +541,10 @@ function handleSelectPerson(items: any[]) {
   editedItem.value.name = person.name || ''
   editedItem.value.username = generateUsernameFromPerson(person)
   editedItem.value.email = person.email || ''
-  if (person.institutionId) {
+  if (authStore.showInstitutionField && person.institutionId) {
     editedItem.value.institutionId = Number(person.institutionId)
+  } else if (authStore.userInstitutionId) {
+    editedItem.value.institutionId = Number(authStore.userInstitutionId)
   }
   showPersonLookup.value = false
 }

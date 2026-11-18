@@ -163,6 +163,7 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthStore } from "~/stores/auth";
 import attendanceRequestService from "@/services/attendance-request.service";
 import personService from "@/services/person.service";
 import attendanceTypeService from "@/services/attendance-type.service";
@@ -180,6 +181,7 @@ useHead({
   title: pageTitle,
 });
 
+const authStore = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 const swal = useSwal();
@@ -233,7 +235,11 @@ onMounted(async () => {
 
 async function loadOptions() {
   await Promise.all([
-    personSvc.retrieve({ pageSize: 1000, ignorePaging: true }).then((res: any) => {
+    personSvc.retrieve({
+      pageSize: 1000,
+      ignorePaging: true,
+      ...(authStore.userInstitutionId ? { institutionId: authStore.userInstitutionId } : {}),
+    }).then((res: any) => {
       if (res.data?.items) listPerson.value = res.data.items;
       else if (Array.isArray(res.data)) listPerson.value = res.data;
     }).catch(() => {}),

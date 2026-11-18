@@ -21,6 +21,7 @@
       v-model:end-date="endDate"
       v-model:selected-month="selectedMonth"
       :show-filters="showFilters"
+      :show-institution-filter="authStore.showInstitutionField"
       :institution-options="institutionOptions"
       :department-options="departmentOptions"
       :is-loading-data="isLoadingData"
@@ -66,6 +67,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
+import { useAuthStore } from "~/stores/auth";
 import { useSwal } from "~/composables/useSwal";
 import institutionService from "~/services/institution.service";
 import departmentService from "~/services/department.service";
@@ -79,6 +81,7 @@ import AdminDashboardDepartmentChart from "./admin/AdminDashboardDepartmentChart
 import AdminDashboardStatusDonutChart from "./admin/AdminDashboardStatusDonutChart.vue";
 import AdminDashboardTopLateTable from "./admin/AdminDashboardTopLateTable.vue";
 
+const authStore = useAuthStore();
 const swal = useSwal();
 const institutionSvc = institutionService();
 const deptSvc = departmentService();
@@ -94,7 +97,7 @@ const today = getLocalDate();
 
 // State Filters
 const showFilters = ref(false);
-const selectedInstitution = ref("all");
+const selectedInstitution = ref(authStore.userInstitutionId ? String(authStore.userInstitutionId) : "all");
 const selectedDepartment = ref("all");
 const startDate = ref<string>(today);
 const endDate = ref<string>(today);
@@ -113,6 +116,9 @@ const departmentOptions = ref<Array<{ value: string; label: string }>>([
 ]);
 
 const currentInstitutionLabel = computed(() => {
+  if (!authStore.showInstitutionField) {
+    return authStore.user?.institutionName || "Sekolah";
+  }
   const opt = institutionOptions.value.find((i: any) => i.value === selectedInstitution.value);
   return opt ? opt.label : "Semua Sekolah";
 });
@@ -333,16 +339,21 @@ const metrics = ref({
 // Load Options from API
 async function loadFilterOptions() {
   try {
-    const instRes: any = await institutionSvc.retrieveAll();
-    const instList = instRes?.data?.data || instRes?.data || instRes || [];
-    if (Array.isArray(instList)) {
-      institutionOptions.value = [
-        { value: "all", label: "Semua Sekolah" },
-        ...instList.map((i: any) => ({ value: String(i.id), label: i.name || i.title })),
-      ];
+    if (authStore.showInstitutionField) {
+      const instRes: any = await institutionSvc.retrieveAll();
+      const instList = instRes?.data?.data || instRes?.data || instRes || [];
+      if (Array.isArray(instList)) {
+        institutionOptions.value = [
+          { value: "all", label: "Semua Sekolah" },
+          ...instList.map((i: any) => ({ value: String(i.id), label: i.name || i.title })),
+        ];
+      }
     }
 
-    const deptRes: any = await deptSvc.retrieveAll({ ignorePaging: true });
+    const deptRes: any = await deptSvc.retrieveAll({
+      ignorePaging: true,
+      institutionId: authStore.userInstitutionId ?? undefined,
+    });
     const deptList = deptRes?.data?.data || deptRes?.data || deptRes || [];
     if (Array.isArray(deptList)) {
       departmentOptions.value = [
@@ -355,12 +366,19 @@ async function loadFilterOptions() {
   }
 }
 
+function resolveTargetInstitutionId() {
+  if (authStore.userInstitutionId) {
+    return String(authStore.userInstitutionId);
+  }
+  return selectedInstitution.value !== "all" ? selectedInstitution.value : undefined;
+}
+
 // Fetch Executive Summary Data from Backend Dashboard Service
 async function loadExecutiveSummary() {
   isLoadingData.value = true;
   try {
     const res: any = await dashboardSvc.retrieveExecutiveSummary({
-      institutionId: selectedInstitution.value !== "all" ? selectedInstitution.value : undefined,
+      institutionId: resolveTargetInstitutionId(),
       departmentId: selectedDepartment.value !== "all" ? selectedDepartment.value : undefined,
       startDate: startDate.value || undefined,
       endDate: endDate.value || undefined,
@@ -545,13 +563,13 @@ const filteredLateEmployees = computed(() => {
 async function loadTopLateEmployees() {
   try {
     const res: any = await dashboardSvc.retrieveTopLateEmployees({
-      institutionId: selectedInstitution.value !== "all" ? selectedInstitution.value : undefined,
+      institutionId: resolveTargetInstitutionId(),
       departmentId: selectedDepartment.value !== "all" ? selectedDepartment.value : undefined,
       month: selectedMonth.value || undefined,
     });
 
     const list = res?.data?.data || res?.data || res;
-    if (Array.isArray(list) && list.length > 0) {
+    if (Array.isArray(list)) {
       lateEmployeeList.value = list;
     }
   } catch (err) {
@@ -565,7 +583,7 @@ function handleFilterChange() {
 }
 
 function resetFilters() {
-  selectedInstitution.value = "all";
+  selectedInstitution.value = authStore.userInstitutionId ? String(authStore.userInstitutionId) : "all";
   selectedDepartment.value = "all";
   startDate.value = today;
   endDate.value = today;
